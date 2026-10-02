@@ -23,9 +23,11 @@ class BackendError(RuntimeError):
 
 
 def rendered_notes(task: Task, files: dict) -> str:
-    """What AIDE receives: the task's fixed notes (task.json `task_notes`), then the harness notes."""
-    parts = [p.strip() for p in (task.task_notes, files["notes.md"]) if p.strip()]
-    return "\n\n".join(parts) + ("\n" if parts else "")
+    """What AIDE receives: the task's fixed notes (task.json `task_notes`), then the harness notes.  Without task
+    notes this is notes.md byte for byte, so prompt variants match runs made before task notes existed."""
+    if not task.task_notes.strip():
+        return files["notes.md"]
+    return task.task_notes.strip() + "\n\n" + files["notes.md"]
 
 
 def run_env(task: Task, files: dict) -> dict:

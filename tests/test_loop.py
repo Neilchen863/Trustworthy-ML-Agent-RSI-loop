@@ -115,7 +115,9 @@ def test_replicate_never_writes_memory(tmp_path):
 def test_task_notes_precede_harness_notes():
     from rsi.backend import rendered_notes
     files = hz.read(Path(__file__).resolve().parents[1] / "harness" / "H0")
-    assert rendered_notes(ROAP, files) == ""                                  # ROAP: unchanged stock variant
+    assert rendered_notes(ROAP, files) == files["notes.md"]                   # ROAP: byte-identical to notes.md
+    odd = {**files, "notes.md": "x \n"}
+    assert rendered_notes(ROAP, odd) == "x \n"
     text = rendered_notes(INSULTS, {**files, "notes.md": NOTES})
     assert text.startswith("Submission format") and text.rstrip().endswith(NOTES.strip())
     assert run_env(INSULTS, files)["PROMPT_VARIANT"] == hz.notes_variant(rendered_notes(INSULTS, files))
