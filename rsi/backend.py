@@ -22,6 +22,12 @@ class BackendError(RuntimeError):
     pass
 
 
+def rendered_notes(task: Task, files: dict) -> str:
+    """What AIDE receives: the task's fixed notes (task.json `task_notes`), then the harness notes."""
+    parts = [p.strip() for p in (task.task_notes, files["notes.md"]) if p.strip()]
+    return "\n\n".join(parts) + ("\n" if parts else "")
+
+
 def run_env(task: Task, files: dict) -> dict:
     a = task.aide
     env = {
@@ -39,7 +45,7 @@ def run_env(task: Task, files: dict) -> dict:
         "SKIP_TASK_NOTES": "1",          # the harness is the only source of notes
         **hz.aide_env(files, a["mode"]),
     }
-    variant = hz.notes_variant(files["notes.md"])
+    variant = hz.notes_variant(rendered_notes(task, files))
     if variant:
         env["PROMPT_VARIANT"] = variant
     return env
@@ -69,9 +75,10 @@ class SgeBackend:
         variant = env.get("PROMPT_VARIANT")
         if variant:                       # content-addressed, so an existing file must be identical
             path = self.root / "config" / "tasks" / f"{task.competition_id}.notes.{variant}.txt"
-            if path.exists() and path.read_text() != files["notes.md"]:
+            text = rendered_notes(task, files)
+            if path.exists() and path.read_text() != text:
                 raise BackendError(f"{path} exists with different content")
-            path.write_text(files["notes.md"])
+            path.write_text(text)
         proc = subprocess.run(plan["command"], cwd=self.root, env={**os.environ, **env},
                               capture_output=True, text=True)
         out = proc.stdout + proc.stderr
@@ -85,10 +92,11 @@ class SgeBackend:
         return hits[-1] if hits else None
 
 
-def delivery_problems(run, files: dict) -> list:
+def delivery_problems(run, files: dict, task: Task) -> list:
     """Did this run actually receive the harness?  An undelivered harness makes H_t and H_t+1 identical."""
     problems = []
-    want = hz.notes_variant(files["notes.md"]) or "none"
+    text = rendered_notes(task, files)
+    want = hz.notes_variant(text) or "none"
     got = run.config.get("prompt_variant", "none")
     if got != want:
         problems.append(f"run_config prompt_variant={got!r}, expected {want!r}")
@@ -97,7 +105,7 @@ def delivery_problems(run, files: dict) -> list:
     if want_profile != got_profile:
         problems.append(f"run_config sub_stats={run.config.get('sub_stats', 'off')!r}, harness submission_profile="
                         f"{want_profile}")
-    first = next((l for l in files["notes.md"].splitlines() if l.strip()), None)
-    if first and (run.notes_delivered is None or first.strip() not in run.notes_delivered):
-        problems.append("the first line of notes.md is not in agent/additional_notes.txt")
+    for first in (next((l for l in t.splitlines() if l.strip()), None) for t in (task.task_notes, files["notes.md"])):
+        if first and (run.notes_delivered is None or first.strip() not in run.notes_delivered):
+            problems.append(f"{first.strip()[:60]!r} is not in agent/additional_notes.txt")
     return problems

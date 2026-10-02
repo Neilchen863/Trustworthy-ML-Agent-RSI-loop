@@ -2,7 +2,15 @@
   "name": "insults",
   "competition_id": "detecting-insults-in-social-commentary",
   "role": "test",
-  "metric": {"name": "roc_auc", "direction": "maximize", "range": [0.0, 1.0], "implausible_val": 0.95},
+  "metric": {
+    "name": "roc_auc",
+    "direction": "maximize",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "implausible_val": 0.95
+  },
   "aide": {
     "mode": "agent",
     "code_model": "gpt-4o-2024-08-06",
@@ -14,5 +22,6 @@
     "gpus": 0
   },
   "train_only_fields": [],
-  "label_column": "Insult"
+  "label_column": "Insult",
+  "task_notes": "Submission format (the grader joins on the Comment text): submission.csv must have exactly the columns Insult, Date, Comment, one row per row of test.csv in the same order, with Date and Comment copied unchanged from test.csv and Insult = predicted probability of an insult. The sample file is sample_submission_null.csv."
 }

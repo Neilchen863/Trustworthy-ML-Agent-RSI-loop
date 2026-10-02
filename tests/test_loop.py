@@ -71,7 +71,7 @@ def test_improver_cannot_write_outside_harness_or_finish_invalid(tmp_path):
 def test_test_task_never_reaches_memory_or_improve(tmp_path):
     loop = Loop(tmp_path / "s")
     loop.init()
-    rec = loop.collect(INSULTS, 0, make_run(tmp_path / "r0", [node(0)], score=0.9))
+    rec = loop.collect(INSULTS, 0, make_run(tmp_path / "r0", [node(0)], score=0.9), check_delivery=False)
     assert rec["vector"]["official_score"] is None and loop.memory.records() == []
     with pytest.raises(LoopError, match="test task"):
         loop.improve(INSULTS, 0, Improver(ScriptedLLM([])))
@@ -110,3 +110,12 @@ def test_replicate_never_writes_memory(tmp_path):
     rec = loop.collect(ROAP, 0, make_run(tmp_path / "r0b", [node(0)], score=0.7), rep=2)
     assert rec["replicate"] == 2 and len(loop.memory.records()) == 1
     assert (loop.state / "rounds" / ROAP.name / "round_00_r2" / "reward.json").is_file()
+
+
+def test_task_notes_precede_harness_notes():
+    from rsi.backend import rendered_notes
+    files = hz.read(Path(__file__).resolve().parents[1] / "harness" / "H0")
+    assert rendered_notes(ROAP, files) == ""                                  # ROAP: unchanged stock variant
+    text = rendered_notes(INSULTS, {**files, "notes.md": NOTES})
+    assert text.startswith("Submission format") and text.rstrip().endswith(NOTES.strip())
+    assert run_env(INSULTS, files)["PROMPT_VARIANT"] == hz.notes_variant(rendered_notes(INSULTS, files))

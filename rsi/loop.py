@@ -90,7 +90,7 @@ class Loop:
         run = load_run(run_dir)
         if not run.nodes:
             raise LoopError(f"{run_dir}: no journal nodes (run not finished?)")
-        problems = delivery_problems(run, files) if check_delivery else []
+        problems = delivery_problems(run, files, task) if check_delivery else []
         if problems:
             raise LoopError(f"H{t} did not reach this run: {problems}")
         reward = verify_all(run, task)
