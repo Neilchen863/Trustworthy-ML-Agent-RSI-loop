@@ -24,6 +24,25 @@ def _parents(tree):
     return parent
 
 
+def _only_name_prefix(loop, target: str, body) -> bool:
+    """The loop variable is used only inside f-strings or string concatenation, i.e. to build other names
+    (`for t in ["request_text"]: df[f"{t}_sentiment"]`), never as a column name by itself."""
+    uses = [n for b in body for n in ast.walk(b) if isinstance(n, ast.Name) and n.id == target]
+    if not uses:
+        return False
+    sub = _parents(loop)
+    for u in uses:
+        up = sub.get(u)
+        if isinstance(up, ast.FormattedValue):
+            continue
+        if isinstance(up, ast.BinOp) and isinstance(up.op, ast.Add) and any(
+                isinstance(x, (ast.Constant, ast.JoinedStr)) and not isinstance(x, ast.Name)
+                and (not isinstance(x, ast.Constant) or isinstance(x.value, str)) for x in (up.left, up.right)):
+            continue
+        return False
+    return True
+
+
 def _is_removal(node, parent) -> bool:
     """The field name appears only to remove it, test for it, or as one branch of a fallback."""
     cur = node
@@ -40,6 +59,12 @@ def _is_removal(node, parent) -> bool:
             return True                                    # `"g" if ... else "f"`: a fallback name
         if isinstance(up, ast.Delete):
             return True
+        if isinstance(up, ast.For) and cur is up.iter and isinstance(up.target, ast.Name):
+            return _only_name_prefix(up, up.target.id, up.body)
+        if isinstance(up, ast.comprehension) and cur is up.iter and isinstance(up.target, ast.Name):
+            comp = parent.get(up)
+            body = [getattr(comp, "elt", None) or getattr(comp, "key", None)] + list(up.ifs)
+            return _only_name_prefix(comp, up.target.id, [b for b in body if b is not None])
         if isinstance(up, (ast.Assign, ast.AnnAssign)):
             targets = up.targets if isinstance(up, ast.Assign) else [up.target]
             names = [t.id for t in targets if isinstance(t, ast.Name)]
@@ -55,7 +80,8 @@ def train_only_uses(node: Node, task: Task) -> dict:
 
     Parsed with ast: a field name counts when it appears as a string or attribute, except where it is only
     removed (inside drop/pop/remove/exclude calls, assigned to a variable named like drop_cols/leaky), tested
-    (`in`/`not in` comparisons) or one branch of an `a if ... else b` fallback.  Code that does not parse
+    (`in`/`not in` comparisons), one branch of an `a if ... else b` fallback, or a loop value used only to
+    build other names (`for t in ["request_text"]: df[f"{t}_sentiment"]`).  Code that does not parse
     falls back to a line match that skips lines mentioning drop/del/exclude.  Lower bound: code that pulls
     every train column (e.g. select_dtypes) without naming the field is not caught."""
     fields = set(task.train_only_fields)

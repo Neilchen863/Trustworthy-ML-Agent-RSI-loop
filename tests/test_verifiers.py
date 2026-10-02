@@ -47,6 +47,9 @@ def test_removal_and_fallback_are_not_uses():
         'drop_cols = ["post_was_edited"]\n': False,
         'X = df["requester_user_flair"]\n': True,
         'feats = ["request_text_edit_aware"]\n': False,       # a test-side field, not request_text
+        'for t in ["request_text"]:\n    df[f"{t}_sent"] = 1\n': False,          # name prefix only
+        'cols = [f"{t}_s" for t in ["request_text"]]\n': False,
+        'for t in ["request_text"]:\n    x = df[t]\n': True,                      # a real column read
     }
     for code, used in cases.items():
         n = Node("n0", 0, None, code, "", "", False, None, 0.6, "")
