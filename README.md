@@ -60,6 +60,7 @@ python -m rsi score --task random_acts_of_pizza <run_dir>     # verifiers on any
 
 # on CRC, with MLEBENCH_AIDE_ROOT, RSI_OVERLAY_PATH and OPENAI_API_KEY set
 python -m rsi init
+python -m rsi budget --cap 20                     # total cap; submit refuses beyond it
 python -m rsi submit  --task random_acts_of_pizza --round 0 [--dry-run]
 python -m rsi collect --task random_acts_of_pizza --round 0 <run_dir>
 python -m rsi improve --task random_acts_of_pizza --round 0 --max-cost 0.5     # -> H1
@@ -69,6 +70,12 @@ python -m rsi submit  --task random_acts_of_pizza --round 1
 
 State lives in `.state/` (`--state` to change): `harness/H*`, `rounds/<task>/round_NN/{submit,reward,improve}.json`,
 `memory.jsonl`. Round `t` always uses `H<t>`. When the improver changes nothing, `H<t+1>` is a copy.
+
+## Budget
+
+`budget.json` in the state holds the cap. Spent = each collected run's `cost.txt` total + $3 reserved per
+submitted-but-uncollected run + every improver session. `submit` refuses if spent + $3 would pass the cap;
+`improve` gets at most what is left. Estimates from logged tokens at list price.
 
 ## Train / test
 

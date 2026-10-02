@@ -22,6 +22,8 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tasks", help="list tasks")
     sub.add_parser("init", help="create H0 in the state directory")
+    s = sub.add_parser("budget", help="show spending; --cap sets the total cap in USD")
+    s.add_argument("--cap", type=float)
 
     s = sub.add_parser("score", help="run the verifiers on any run directory (no state change)")
     s.add_argument("--task", required=True)
@@ -54,6 +56,11 @@ def main(argv=None):
             print(f"{name:24s} {t.role:5s} {t.competition_id}")
     elif a.cmd == "init":
         print(loop.init())
+    elif a.cmd == "budget":
+        from .budget import ledger, set_cap
+        if a.cap is not None:
+            set_cap(Path(a.state), a.cap)
+        _print(ledger(Path(a.state)))
     elif a.cmd == "score":
         r = verify_all(load_run(a.run_dir), load_task(a.task))
         _print(r)
@@ -66,7 +73,9 @@ def main(argv=None):
     elif a.cmd == "improve":
         from .improver import Improver
         from .llm import OpenAIChat
-        out = loop.improve(load_task(a.task), a.round, Improver(OpenAIChat(a.model, max_cost_usd=a.max_cost)))
+        from .budget import improver_allowance
+        cap = improver_allowance(Path(a.state), a.max_cost)
+        out = loop.improve(load_task(a.task), a.round, Improver(OpenAIChat(a.model, max_cost_usd=cap)))
         _print({k: out[k] for k in ("from", "to", "outcome", "summary", "reason", "cost_usd")})
         print(out["diff"] or "(no diff)")
     return 0

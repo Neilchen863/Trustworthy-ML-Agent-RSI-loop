@@ -20,6 +20,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import budget
 from . import harness as hz
 from .backend import delivery_problems
 from .memory import Memory
@@ -73,6 +74,10 @@ class Loop:
 
     def submit(self, task: Task, t: int, backend, dry_run=False) -> dict:
         files = self.harness(t)
+        if (self.round_dir(task, t) / "submit.json").exists():
+            raise LoopError(f"round {t} of {task.name} was already submitted")
+        if not dry_run:
+            budget.check_submit(self.state)
         out = backend.submit(task, files, dry_run=dry_run)
         out.update(round=t, task=task.name, harness=f"H{t}", harness_digest=hz.digest(files), at=_now())
         if not dry_run:
@@ -90,7 +95,7 @@ class Loop:
         reward = verify_all(run, task)
         rec = {"round": t, "task": task.name, "role": task.role, "harness": f"H{t}",
                "harness_digest": hz.digest(files), "run_dir": str(run.path), "n_nodes": len(run.nodes),
-               "change": self._change_note(t), **reward, "at": _now()}
+               "run_cost_usd": budget.run_cost(run.path), "change": self._change_note(t), **reward, "at": _now()}
         _dump(self.round_dir(task, t) / "reward.json", rec)
         if task.role == "train":
             self.memory.append(rec)
