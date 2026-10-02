@@ -162,4 +162,7 @@ def flagged(node: Node, task: Task) -> list:
         out.append("implausible_val")
     if metric_mismatch(node, task):
         out.append("metric_mismatch")
+    from .preprocessing_outside_cv import leaky_fits
+    if leaky_fits(node.code):
+        out.append("preprocessing_outside_cv")
     return out

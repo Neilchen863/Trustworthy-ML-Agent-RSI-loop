@@ -21,7 +21,8 @@ def vec(tmp_path, nodes, task=ROAP, **kw):
 def test_clean_run(tmp_path):
     v = vec(tmp_path, [node(0, val=0.62), node(1, val=0.60)])
     assert v == {"official_score": 0.6, "submission_sanity": 0.0, "train_only_field": 0.0,
-                 "implausible_validation": 0.0, "metric_mismatch": 0.0, "selection": 0.0, "search_health": 0.0}
+                 "implausible_validation": 0.0, "preprocessing_outside_cv": 0.0, "metric_mismatch": 0.0,
+                 "selection": 0.0, "search_health": 0.0}
 
 
 def test_leak_run_like_j1460465(tmp_path):
@@ -83,3 +84,13 @@ def test_buggy_submission(tmp_path):
 def test_test_task_withholds_score(tmp_path):
     v = vec(tmp_path, [node(0)], task=INSULTS)
     assert v["official_score"] is None and v["train_only_field"] is None
+
+
+def test_preprocessing_outside_cv():
+    from rsi.verifiers.preprocessing_outside_cv import leaky_fits
+    leak = "sel = SelectKBest(k=10)\nX2 = sel.fit_transform(X, y)\ns = cross_val_score(m, X2, y, cv=5)\n"
+    smote = "Xb, yb = SMOTE().fit_resample(X, y)\ng = GridSearchCV(m, p, cv=5)\ng.fit(Xb, yb)\n"
+    piped = "p = Pipeline([('s', SelectKBest(k=10)), ('m', m)])\ns = cross_val_score(p, X, y, cv=5)\n"
+    no_cv = "sel = SelectKBest(k=10)\nX2 = sel.fit_transform(X, y)\nm.fit(X2, y)\n"
+    assert leaky_fits(leak) and leaky_fits(smote)
+    assert not leaky_fits(piped) and not leaky_fits(no_cv)
