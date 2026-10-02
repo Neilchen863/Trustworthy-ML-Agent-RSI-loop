@@ -108,11 +108,12 @@ def train_only_uses(node: Node, task: Task) -> dict:
     return found
 
 
-METRIC_CODE = re.compile(r"auc|score|metric|accuracy|rmse|loss|evaluat", re.I)
+METRIC_CODE = re.compile(r"auc|score|metric|accuracy|rmse|loss|evaluat|resampl|smote|oversampl|upsampl", re.I)
 
 
-def metric_lines(node: Node, limit: int = 3) -> list:
-    """Code lines that compute or print the validation metric (so a reader can see what was scored)."""
+def metric_lines(node: Node, limit: int = 5) -> list:
+    """Code lines that compute or print the validation metric, or resample the data it is computed on (so a
+    reader can see what was scored and on which rows)."""
     out = []
     for line in node.code.splitlines():
         s = line.strip()
