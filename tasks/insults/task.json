@@ -1,0 +1,18 @@
+{
+  "name": "insults",
+  "competition_id": "detecting-insults-in-social-commentary",
+  "role": "test",
+  "metric": {"name": "roc_auc", "direction": "maximize", "range": [0.0, 1.0], "implausible_val": 0.99},
+  "aide": {
+    "mode": "agent",
+    "code_model": "gpt-4o-2024-08-06",
+    "feedback_model": "gpt-4o-2024-08-06",
+    "run_secs": 3600,
+    "steps": 25,
+    "exec_timeout": 600,
+    "cpus": 8,
+    "gpus": 0
+  },
+  "train_only_fields": [],
+  "label_column": "Insult"
+}

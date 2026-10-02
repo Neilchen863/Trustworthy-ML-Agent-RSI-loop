@@ -1,0 +1,12 @@
+[project]
+name = "rsi-loop"
+version = "0.1.0"
+description = "Minimal loop: AIDE run -> verifier reward vector -> memory -> LLM edits its harness"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["rsi", "rsi.verifiers"]
