@@ -8,6 +8,7 @@ OVERLAY_PATH selects a dedicated agent-fix overlay.  Use one that carries the me
 agent-decision prompt fix (the shared overlay on CRC has both bugs; see the old repo's patches/)."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -91,6 +92,11 @@ def delivery_problems(run, files: dict) -> list:
     got = run.config.get("prompt_variant", "none")
     if got != want:
         problems.append(f"run_config prompt_variant={got!r}, expected {want!r}")
+    want_profile = bool(json.loads(files["config.json"]).get("submission_profile"))
+    got_profile = run.config.get("sub_stats", "off").lower() in ("1", "on", "true", "yes")
+    if want_profile != got_profile:
+        problems.append(f"run_config sub_stats={run.config.get('sub_stats', 'off')!r}, harness submission_profile="
+                        f"{want_profile}")
     first = next((l for l in files["notes.md"].splitlines() if l.strip()), None)
     if first and (run.notes_delivered is None or first.strip() not in run.notes_delivered):
         problems.append("the first line of notes.md is not in agent/additional_notes.txt")
