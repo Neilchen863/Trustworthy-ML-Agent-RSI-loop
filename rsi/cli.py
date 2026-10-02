@@ -24,6 +24,8 @@ def main(argv=None):
     sub.add_parser("init", help="create H0 in the state directory")
     s = sub.add_parser("budget", help="show spending; --cap sets the total cap in USD")
     s.add_argument("--cap", type=float)
+    s.add_argument("--extra", type=float, help="record spending not visible in rounds/ (USD)")
+    s.add_argument("--note", default="")
 
     s = sub.add_parser("score", help="run the verifiers on any run directory (no state change)")
     s.add_argument("--task", required=True)
@@ -57,9 +59,11 @@ def main(argv=None):
     elif a.cmd == "init":
         print(loop.init())
     elif a.cmd == "budget":
-        from .budget import ledger, set_cap
+        from .budget import add_extra, ledger, set_cap
         if a.cap is not None:
             set_cap(Path(a.state), a.cap)
+        if a.extra is not None:
+            add_extra(Path(a.state), a.extra, a.note)
         _print(ledger(Path(a.state)))
     elif a.cmd == "score":
         r = verify_all(load_run(a.run_dir), load_task(a.task))

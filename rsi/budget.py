@@ -30,8 +30,9 @@ def run_cost(run_dir) -> float | None:
 def ledger(state: Path) -> dict:
     state = Path(state)
     cfg = state / "budget.json"
-    cap = json.loads(cfg.read_text())["cap_usd"] if cfg.is_file() else None
-    items = []
+    conf = json.loads(cfg.read_text()) if cfg.is_file() else {}
+    cap = conf.get("cap_usd")
+    items = [{"what": e["what"], "usd": e["usd"], "kind": "extra"} for e in conf.get("extra", [])]
     for sub in sorted(state.glob("rounds/*/round_*/submit.json")):
         d = sub.parent
         s = json.loads(sub.read_text())
@@ -73,5 +74,17 @@ def improver_allowance(state: Path, requested: float) -> float:
 
 
 def set_cap(state: Path, cap: float) -> None:
+    _update(state, lambda c: c.update(cap_usd=cap))
+
+
+def add_extra(state: Path, usd: float, what: str) -> None:
+    """Spending the rounds/ files do not show (e.g. superseded improver sessions)."""
+    _update(state, lambda c: c.setdefault("extra", []).append({"what": what, "usd": usd}))
+
+
+def _update(state: Path, change) -> None:
+    f = Path(state) / "budget.json"
     Path(state).mkdir(parents=True, exist_ok=True)
-    (Path(state) / "budget.json").write_text(json.dumps({"cap_usd": cap}) + "\n")
+    conf = json.loads(f.read_text()) if f.is_file() else {}
+    change(conf)
+    f.write_text(json.dumps(conf, indent=1) + "\n")
