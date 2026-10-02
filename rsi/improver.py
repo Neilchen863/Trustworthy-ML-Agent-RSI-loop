@@ -18,16 +18,23 @@ the result is added to memory. Your job: edit the harness so that the next run s
 The harness has two files:
 - notes.md: text added to every prompt AIDE's LLMs see (code writing, debugging, reviewing, choosing the
   node to submit). Up to {max_notes} characters. Empty = stock AIDE.
-- config.json: search settings. Schema (key: type [min, max] mode that reads it):
+- config.json: search settings. This task runs in {mode} mode, so only these keys matter (type [min, max]):
 {schema}
-  This task runs in {mode} mode; keys for the other mode have no effect.
+  The other keys in the file are not read in {mode} mode; check() rejects changes to them.
+
+What AIDE can and cannot see: AIDE reads notes.md as plain instructions. It never sees verifier names,
+rewards, flags or words like "trusted"/"implausible" from this loop, so notes that say "avoid flagged
+nodes" give it nothing to act on. Notes must describe concrete practices AIDE can follow while writing,
+debugging, reviewing or choosing code (for example how validation must be computed, which data a step may
+be fitted on, what to check before trusting a score).
 
 The reward vector (higher is better):
 - official_score: the official test metric of the submitted predictions (raw value).
 - every other verifier: in [-1, 0]; 0 = no problem found, -1 = worst. Each comes with a summary and evidence.
 
 Rules:
-- Base every change on evidence in memory. Say which verifier result motivated it.
+- Base every change on evidence in memory. The evidence includes code lines from the flagged nodes: use them
+  to identify the concrete mechanism behind a verifier result, and name that mechanism in your summary.
 - You may rewrite or delete existing notes; you are not limited to appending.
 - AIDE never sees test labels or the official score; do not ask it to.
 - One run is noisy. Do not chase a single number; look for problems the evidence shows clearly.
@@ -83,7 +90,8 @@ class Improver:
         work = dict(files)
         context = {"context/memory.jsonl": "\n".join(json.dumps(r, ensure_ascii=False) for r in memory),
                    "context/task.md": task_md}
-        schema = "\n".join(f"  {k}: {t.__name__} [{lo}, {hi}] {m}" for k, (t, lo, hi, m) in hz.CONFIG_SCHEMA.items())
+        schema = "\n".join(f"  {k}: {hz.CONFIG_SCHEMA[k][0].__name__} [{hz.CONFIG_SCHEMA[k][1]}, {hz.CONFIG_SCHEMA[k][2]}]"
+                           for k in hz.active_keys(mode))
         messages = [
             {"role": "system", "content": SYSTEM.format(max_notes=hz.MAX_NOTES_CHARS, schema=schema, mode=mode)},
             {"role": "user", "content": "Memory summary:\n\n" + render_summary(memory)
@@ -103,7 +111,7 @@ class Improver:
                     messages.append({"role": "user", "content": "Call a tool, or finish(summary)."})
                     continue
                 for c in calls:
-                    result = self._call(c["function"]["name"], c["function"]["arguments"], work, context)
+                    result = self._call(c["function"]["name"], c["function"]["arguments"], work, context, mode, files)
                     if c["function"]["name"] == "finish" and result.startswith("finished"):
                         summary = json.loads(c["function"]["arguments"] or "{}").get("summary", "")
                     messages.append({"role": "tool", "tool_call_id": c["id"], "content": result})
@@ -118,7 +126,7 @@ class Improver:
                 "transcript": transcript}
 
     @staticmethod
-    def _call(name, raw_args, work, context) -> str:
+    def _call(name, raw_args, work, context, mode=None, base=None) -> str:
         try:
             args = json.loads(raw_args or "{}")
         except json.JSONDecodeError:
@@ -135,9 +143,9 @@ class Improver:
             work[fname] = str(args.get("content", ""))
             return f"wrote {path} ({len(work[fname])} chars)"
         if name == "check":
-            problems = hz.validate(work)
+            problems = hz.validate(work, mode, base)
             return "ok" if not problems else "problems:\n" + "\n".join(problems)
         if name == "finish":
-            problems = hz.validate(work)
+            problems = hz.validate(work, mode, base)
             return "finished" if not problems else "cannot finish, fix first:\n" + "\n".join(problems)
         return f"error: unknown tool {name!r}"

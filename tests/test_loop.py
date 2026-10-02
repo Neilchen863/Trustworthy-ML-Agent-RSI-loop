@@ -88,3 +88,16 @@ def test_validate_and_env():
     env = run_env(ROAP, {"notes.md": NOTES, "config.json": json.dumps(cfg)})
     assert env["AIDE_SUB_STATS"] == "1" and env["PROMPT_VARIANT"] == hz.notes_variant(NOTES)
     assert hz.validate({"notes.md": "", "config.json": '{"tree_topk": 5}', "x.py": ""})
+
+
+def test_other_mode_keys_are_frozen(tmp_path):
+    loop = Loop(tmp_path / "s")
+    loop.init()
+    loop.collect(ROAP, 0, make_run(tmp_path / "r0", [node(0)]))
+    cfg = json.loads(hz.read(loop.harness_dir(0))["config.json"])
+    cfg["debug_prob"] = 0.5                                       # rule-mode key, task runs in agent mode
+    llm = ScriptedLLM([[("write_file", {"path": "harness/config.json", "content": json.dumps(cfg)})],
+                       [("finish", {"summary": "s"})]])
+    out = loop.improve(ROAP, 0, Improver(llm, max_steps=2))
+    assert out["outcome"] == "unfinished"
+    assert "debug_prob" in llm.seen[-1][-1]["content"]             # finish refused with the reason

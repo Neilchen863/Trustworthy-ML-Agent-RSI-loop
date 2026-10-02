@@ -33,8 +33,14 @@ class HarnessError(ValueError):
     pass
 
 
-def validate(files: dict) -> list:
-    """Problems with a candidate harness ({filename: text}); empty list = valid."""
+def active_keys(mode: str) -> list:
+    return [k for k, (_, _, _, m) in CONFIG_SCHEMA.items() if m in (mode, "both")]
+
+
+def validate(files: dict, mode: str | None = None, base: dict | None = None) -> list:
+    """Problems with a candidate harness ({filename: text}); empty list = valid.  With `mode` and `base` (the
+    harness it was edited from), keys that the task's mode does not read must stay unchanged: editing them
+    changes nothing in the run and only adds noise to the record."""
     problems = [f"file {f!r} is not part of the harness (allowed: {FILES})" for f in files if f not in FILES]
     problems += [f"missing {f}" for f in FILES if f not in files]
     notes = files.get("notes.md", "")
@@ -61,6 +67,12 @@ def validate(files: dict) -> list:
     missing = [k for k in CONFIG_SCHEMA if k not in cfg]
     if missing:
         problems.append(f"config.json: missing keys {missing}")
+    if mode and base:
+        old = json.loads(base["config.json"])
+        for k in CONFIG_SCHEMA:
+            if k not in active_keys(mode) and cfg.get(k) != old.get(k):
+                problems.append(f"config.json: {k} is read only in {CONFIG_SCHEMA[k][3]} mode and this task runs in "
+                                f"{mode} mode; leave it at {old.get(k)!r}")
     return problems
 
 

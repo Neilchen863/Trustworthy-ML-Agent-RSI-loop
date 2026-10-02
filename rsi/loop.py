@@ -113,7 +113,7 @@ class Loop:
         task_md = (task.path / "instruction.md").read_text()
         res = improver.improve(files, memory, task_md, task.aide["mode"])
         new = res["files"] if res["outcome"] == "edited" else files
-        problems = hz.validate(new)
+        problems = hz.validate(new, task.aide["mode"], files)
         if problems:                                   # the improver's own check should have caught this
             res.update(outcome="rejected", reason=problems)
             new = files
