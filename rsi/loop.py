@@ -52,8 +52,9 @@ class Loop:
     def harness_dir(self, t: int) -> Path:
         return self.state / "harness" / f"H{t}"
 
-    def round_dir(self, task: Task, t: int) -> Path:
-        return self.state / "rounds" / task.name / f"round_{t:02d}"
+    def round_dir(self, task: Task, t: int, rep: int = 1) -> Path:
+        """Replicates (rep > 1) re-run harness H<t> for evaluation only; they never write memory."""
+        return self.state / "rounds" / task.name / (f"round_{t:02d}" + (f"_r{rep}" if rep > 1 else ""))
 
     def harness(self, t: int) -> dict:
         d = self.harness_dir(t)
@@ -72,19 +73,19 @@ class Loop:
             hz.write(d, files)
         return d
 
-    def submit(self, task: Task, t: int, backend, dry_run=False) -> dict:
+    def submit(self, task: Task, t: int, backend, dry_run=False, rep: int = 1) -> dict:
         files = self.harness(t)
-        if (self.round_dir(task, t) / "submit.json").exists():
+        if (self.round_dir(task, t, rep) / "submit.json").exists():
             raise LoopError(f"round {t} of {task.name} was already submitted")
         if not dry_run:
             budget.check_submit(self.state)
         out = backend.submit(task, files, dry_run=dry_run)
-        out.update(round=t, task=task.name, harness=f"H{t}", harness_digest=hz.digest(files), at=_now())
+        out.update(round=t, replicate=rep, task=task.name, harness=f"H{t}", harness_digest=hz.digest(files), at=_now())
         if not dry_run:
-            _dump(self.round_dir(task, t) / "submit.json", out)
+            _dump(self.round_dir(task, t, rep) / "submit.json", out)
         return out
 
-    def collect(self, task: Task, t: int, run_dir, check_delivery=True) -> dict:
+    def collect(self, task: Task, t: int, run_dir, check_delivery=True, rep: int = 1) -> dict:
         files = self.harness(t)
         run = load_run(run_dir)
         if not run.nodes:
@@ -93,11 +94,11 @@ class Loop:
         if problems:
             raise LoopError(f"H{t} did not reach this run: {problems}")
         reward = verify_all(run, task)
-        rec = {"round": t, "task": task.name, "role": task.role, "harness": f"H{t}",
+        rec = {"round": t, "replicate": rep, "task": task.name, "role": task.role, "harness": f"H{t}",
                "harness_digest": hz.digest(files), "run_dir": str(run.path), "n_nodes": len(run.nodes),
                "run_cost_usd": budget.run_cost(run.path), "change": self._change_note(t), **reward, "at": _now()}
-        _dump(self.round_dir(task, t) / "reward.json", rec)
-        if task.role == "train":
+        _dump(self.round_dir(task, t, rep) / "reward.json", rec)
+        if task.role == "train" and rep == 1:
             self.memory.append(rec)
         return rec
 

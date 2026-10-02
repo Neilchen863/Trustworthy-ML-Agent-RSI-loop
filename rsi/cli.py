@@ -35,6 +35,7 @@ def main(argv=None):
     s.add_argument("--task", required=True)
     s.add_argument("--round", type=int, required=True)
     s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--rep", type=int, default=1, help="replicate id; >1 = evaluation only, never in memory")
     s.add_argument("--aide-root")
     s.add_argument("--overlay")
 
@@ -43,6 +44,7 @@ def main(argv=None):
     s.add_argument("--round", type=int, required=True)
     s.add_argument("run_dir")
     s.add_argument("--no-delivery-check", action="store_true", help="for runs started outside the loop")
+    s.add_argument("--rep", type=int, default=1)
 
     s = sub.add_parser("improve", help="LLM edits H<round> into H<round+1>")
     s.add_argument("--task", required=True)
@@ -70,9 +72,10 @@ def main(argv=None):
         _print(r)
     elif a.cmd == "submit":
         from .backend import SgeBackend
-        _print(loop.submit(load_task(a.task), a.round, SgeBackend(a.aide_root, a.overlay), dry_run=a.dry_run))
+        _print(loop.submit(load_task(a.task), a.round, SgeBackend(a.aide_root, a.overlay), dry_run=a.dry_run,
+                          rep=a.rep))
     elif a.cmd == "collect":
-        rec = loop.collect(load_task(a.task), a.round, a.run_dir, check_delivery=not a.no_delivery_check)
+        rec = loop.collect(load_task(a.task), a.round, a.run_dir, check_delivery=not a.no_delivery_check, rep=a.rep)
         _print({"round": rec["round"], "harness": rec["harness"], "vector": rec["vector"]})
     elif a.cmd == "improve":
         from .improver import Improver

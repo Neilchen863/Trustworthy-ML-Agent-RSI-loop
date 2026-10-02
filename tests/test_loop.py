@@ -101,3 +101,12 @@ def test_other_mode_keys_are_frozen(tmp_path):
     out = loop.improve(ROAP, 0, Improver(llm, max_steps=2))
     assert out["outcome"] == "unfinished"
     assert "debug_prob" in llm.seen[-1][-1]["content"]             # finish refused with the reason
+
+
+def test_replicate_never_writes_memory(tmp_path):
+    loop = Loop(tmp_path / "s")
+    loop.init()
+    loop.collect(ROAP, 0, make_run(tmp_path / "r0", [node(0)]))
+    rec = loop.collect(ROAP, 0, make_run(tmp_path / "r0b", [node(0)], score=0.7), rep=2)
+    assert rec["replicate"] == 2 and len(loop.memory.records()) == 1
+    assert (loop.state / "rounds" / ROAP.name / "round_00_r2" / "reward.json").is_file()
