@@ -7,7 +7,9 @@ import time
 import urllib.error
 import urllib.request
 
-PRICES_PER_M = {"gpt-4o": (2.5, 10.0), "gpt-4o-mini": (0.15, 0.6), "gpt-5": (1.25, 10.0)}   # list USD per 1M in/out
+# USD per 1M tokens (in, out).  gpt-5.4 is deliberately priced high (not checked against the price list) so the
+# budget never under-counts; longest matching prefix wins.
+PRICES_PER_M = {"gpt-4o": (2.5, 10.0), "gpt-4o-mini": (0.15, 0.6), "gpt-5": (5.0, 40.0)}
 
 
 class LLMError(RuntimeError):
@@ -32,8 +34,10 @@ class OpenAIChat:
         key = os.environ.get("OPENAI_API_KEY", "").strip()
         if not key:
             raise LLMError("OPENAI_API_KEY is not set (on CRC: source the run.env that holds it)")
-        body = json.dumps({"model": self.model, "temperature": self.temperature, "messages": messages,
-                           "tools": tools, "tool_choice": "auto"}).encode()
+        req_body = {"model": self.model, "messages": messages, "tools": tools, "tool_choice": "auto"}
+        if not self.model.startswith(("gpt-5", "o1", "o3", "o4")):     # reasoning models take only the default
+            req_body["temperature"] = self.temperature
+        body = json.dumps(req_body).encode()
         last = None
         for attempt in range(self.retries):
             req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=body, method="POST",
@@ -45,7 +49,7 @@ class OpenAIChat:
                 usage = data.get("usage") or {}
                 self.calls += 1
                 self.tokens_in += int(usage.get("prompt_tokens", 0))
-                self.tokens_out += int(usage.get("completion_tokens", 0))
+                self.tokens_out += int(usage.get("completion_tokens", 0))       # includes reasoning tokens
                 return data["choices"][0]["message"]
             except urllib.error.HTTPError as exc:
                 last = f"HTTP {exc.code}: {exc.read().decode(errors='ignore')[:200]}"
