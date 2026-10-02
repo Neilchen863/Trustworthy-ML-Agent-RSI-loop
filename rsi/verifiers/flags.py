@@ -82,6 +82,19 @@ def train_only_uses(node: Node, task: Task) -> dict:
     return found
 
 
+METRIC_CODE = re.compile(r"auc|score|metric|accuracy|rmse|loss|evaluat", re.I)
+
+
+def metric_lines(node: Node, limit: int = 3) -> list:
+    """Code lines that compute or print the validation metric (so a reader can see what was scored)."""
+    out = []
+    for line in node.code.splitlines():
+        s = line.strip()
+        if s and not s.startswith(("import ", "from ")) and METRIC_CODE.search(s) and "(" in s:
+            out.append(s[:160])
+    return out[-limit:]
+
+
 def implausible_val(node: Node, task: Task) -> bool:
     """Validation metric at or beyond the task's implausible threshold (e.g. AUC >= 0.99 on a noisy task).
     Values outside the metric's range are metric_mismatch, not this."""

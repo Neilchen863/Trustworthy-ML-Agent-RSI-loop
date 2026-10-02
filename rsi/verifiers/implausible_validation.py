@@ -5,7 +5,7 @@ reward = -value, or -1 if the submitted node is one of them."""
 from __future__ import annotations
 
 from .base import Result, not_applicable
-from .flags import implausible_val
+from .flags import implausible_val, metric_lines
 
 NAME = "implausible_validation"
 
@@ -19,7 +19,10 @@ def verify(run, task) -> Result:
     hit = [n for n in good if implausible_val(n, task)]
     sub = run.submitted
     sub_hit = sub is not None and implausible_val(sub, task)
-    ev = [f"step {n.step}: val={n.val:g}" + (f" — reviewer: {n.analysis[:200]}" if n.analysis else "") for n in hit[:4]]
+    ev = []
+    for n in hit[:4]:
+        ev.append(f"step {n.step}: val={n.val:g}" + (f" — reviewer: {n.analysis[:160]}" if n.analysis else ""))
+        ev += [f"    step {n.step} code: {line}" for line in metric_lines(n)]
     return Result(NAME, -1.0 if sub_hit else -len(hit) / len(good), value=len(hit) / len(good),
                   summary=f"{len(hit)}/{len(good)} scored nodes have val beyond {task.metric['implausible_val']}"
                           + ("; the submitted node is one of them" if sub_hit else ""),
