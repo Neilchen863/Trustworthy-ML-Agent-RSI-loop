@@ -2,7 +2,7 @@
   "name": "insults",
   "competition_id": "detecting-insults-in-social-commentary",
   "role": "test",
-  "metric": {"name": "roc_auc", "direction": "maximize", "range": [0.0, 1.0], "implausible_val": 0.99},
+  "metric": {"name": "roc_auc", "direction": "maximize", "range": [0.0, 1.0], "implausible_val": 0.95},
   "aide": {
     "mode": "agent",
     "code_model": "gpt-4o-2024-08-06",
