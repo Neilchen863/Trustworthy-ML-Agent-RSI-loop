@@ -6,6 +6,7 @@
     submission/submission.csv     the submitted predictions
     grade_report.txt              official MLE-bench grade (after grading)
     agent/additional_notes.txt    the notes AIDE actually received
+    logs/harness_events.jsonl     load/call events written by the fixed harness adapter (new runs only)
 """
 from __future__ import annotations
 
@@ -36,6 +37,11 @@ class Node:
     exc_type: str | None
     val: float | None            # validation metric AIDE recorded (None when buggy or missing)
     analysis: str
+    index: int = -1              # position in journal.json "nodes" (for JSON pointers)
+    exc_info: dict | None = None
+    exc_stack: list | None = None
+    exec_time: float | None = None
+    maximize: bool | None = None
 
 
 @dataclass
@@ -47,6 +53,7 @@ class Run:
     grade: dict | None
     notes_delivered: str | None
     submission: list = field(default_factory=list)      # rows of submission.csv as dicts
+    harness_events: list = field(default_factory=list)  # [(line number, event dict)] from harness_events.jsonl
 
     @property
     def submitted(self) -> Node | None:
@@ -76,14 +83,18 @@ def read_nodes(path: Path) -> list:
     # Real journals leave each node's own `parent` empty; the tree lives in node2parent.
     parents = data.get("node2parent", {}) if isinstance(data, dict) else {}
     nodes = []
-    for n in raw:
+    for i, n in enumerate(raw):
         m = n.get("metric") if isinstance(n.get("metric"), dict) else {}
         buggy = bool(n.get("is_buggy"))
         val = m.get("value") if isinstance(m.get("value"), (int, float)) and not buggy else None
         nodes.append(Node(id=n["id"], step=int(n.get("step") or 0), parent=n.get("parent") or parents.get(n["id"]),
                           code=n.get("code") or "", plan=n.get("plan") or "", term_out=_term_out(n),
                           is_buggy=buggy, exc_type=n.get("exc_type"), val=None if val is None else float(val),
-                          analysis=n.get("analysis") or ""))
+                          analysis=n.get("analysis") or "", index=i,
+                          exc_info=n.get("exc_info") if isinstance(n.get("exc_info"), dict) else None,
+                          exc_stack=n.get("exc_stack") if isinstance(n.get("exc_stack"), list) else None,
+                          exec_time=float(n["exec_time"]) if isinstance(n.get("exec_time"), (int, float)) else None,
+                          maximize=m.get("maximize") if isinstance(m.get("maximize"), bool) else None))
     return sorted(nodes, key=lambda n: n.step)
 
 
@@ -116,4 +127,18 @@ def load_run(path) -> Run:
             rows = list(csv.DictReader(fh))
     return Run(path=path, config=read_config(path), nodes=read_nodes(path),
                submitted_id=sid.read_text().strip() if sid.is_file() else None, grade=read_grade(path),
-               notes_delivered=notes.read_text(errors="ignore") if notes.is_file() else None, submission=rows)
+               notes_delivered=notes.read_text(errors="ignore") if notes.is_file() else None, submission=rows,
+               harness_events=read_harness_events(path))
+
+
+def read_harness_events(path: Path) -> list:
+    f = Path(path) / "logs" / "harness_events.jsonl"
+    if not f.is_file():
+        return []
+    out = []
+    for i, line in enumerate(f.read_text(errors="ignore").splitlines(), 1):
+        try:
+            out.append((i, json.loads(line)))
+        except json.JSONDecodeError:
+            out.append((i, {"event": "unparsable", "raw": line[:200]}))
+    return out

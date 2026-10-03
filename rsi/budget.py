@@ -4,7 +4,9 @@
           + runs submitted but not collected yet (RESERVE_PER_RUN each)
           + every improver session (cost_usd in improve.json)
 
-submit refuses when spent + RESERVE_PER_RUN would exceed the cap; improve gets at most what is left.
+submit refuses when spent + RESERVE_PER_RUN would exceed the cap; improve gets at most what is left after the
+reserves.  A state counts only its own spending; `history_usd` (rsi budget --history) records what earlier
+states already spent, so the ledger also reports the cumulative total.  Reused runs are not charged again.
 Costs are list-price estimates from logged tokens, not the OpenAI invoice."""
 from __future__ import annotations
 
@@ -33,6 +35,10 @@ def ledger(state: Path) -> dict:
     conf = json.loads(cfg.read_text()) if cfg.is_file() else {}
     cap = conf.get("cap_usd")
     items = [{"what": e["what"], "usd": e["usd"], "kind": "extra"} for e in conf.get("extra", [])]
+    for rew_only in sorted(state.glob("rounds/*/round_*/reward.json")):
+        if not (rew_only.parent / "submit.json").exists():
+            items.append({"what": f"reused run {rew_only.parent.parent.name}/{rew_only.parent.name}", "usd": 0.0,
+                          "kind": "reused (charged in an earlier state)"})
     for sub in sorted(state.glob("rounds/*/round_*/submit.json")):
         d = sub.parent
         s = json.loads(sub.read_text())
@@ -49,8 +55,10 @@ def ledger(state: Path) -> dict:
         items.append({"what": f"improve {imp.parent.parent.name}/{imp.parent.name}",
                       "usd": json.loads(imp.read_text()).get("cost_usd") or 0.0, "kind": "improver"})
     spent = round(sum(i["usd"] for i in items), 4)
+    hist = conf.get("history_usd")
     return {"cap_usd": cap, "spent_usd": spent, "left_usd": None if cap is None else round(cap - spent, 4),
-            "items": items}
+            "history_usd": hist, "cumulative_usd": None if hist is None else round(hist + spent, 4),
+            "cumulative_cap_usd": None if hist is None or cap is None else round(hist + cap, 4), "items": items}
 
 
 def check_submit(state: Path) -> dict:
@@ -75,6 +83,10 @@ def improver_allowance(state: Path, requested: float) -> float:
 
 def set_cap(state: Path, cap: float) -> None:
     _update(state, lambda c: c.update(cap_usd=cap))
+
+
+def set_history(state: Path, usd: float, note: str) -> None:
+    _update(state, lambda c: c.update(history_usd=usd, history_note=note))
 
 
 def add_extra(state: Path, usd: float, what: str) -> None:
