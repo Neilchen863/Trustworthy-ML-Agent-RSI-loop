@@ -1,0 +1,57 @@
+{
+  "applicable": true,
+  "ok": true,
+  "problems": [],
+  "expected": {
+    "digest": "16f381905a92",
+    "files": {
+      "config.json": "f49ab6cef0f47a4c2b8180cf6dd54c53c2375c7808aae29a4778bbdaad5d62e7",
+      "hooks/on_exec_error.py": "65d7f70707f2ccac602b9b3bb78bd283571ed535aa2426cef30ff781039132bf",
+      "notes.md": "7eff655add79cc7527abadd7850d95794a84ec59cf59feef960f87d4d813c091"
+    },
+    "interface": {
+      "on_exec_error": 1
+    },
+    "adapter_sha256": "fbe98931a99e70eec5bc1563cbcfd0c55298082c0142bf3aa13524ff26a795c6"
+  },
+  "actual": {
+    "load": {
+      "t": 1791021770.837,
+      "event": "load",
+      "adapter_version": 1,
+      "adapter_sha256": "fbe98931a99e70eec5bc1563cbcfd0c55298082c0142bf3aa13524ff26a795c6",
+      "interface": "on_exec_error/1",
+      "harness_dir": "/home/agent/rsi_harness",
+      "manifest_digest": "16f381905a92",
+      "manifest_files": {
+        "config.json": "f49ab6cef0f47a4c2b8180cf6dd54c53c2375c7808aae29a4778bbdaad5d62e7",
+        "hooks/on_exec_error.py": "65d7f70707f2ccac602b9b3bb78bd283571ed535aa2426cef30ff781039132bf",
+        "notes.md": "7eff655add79cc7527abadd7850d95794a84ec59cf59feef960f87d4d813c091"
+      },
+      "loaded_files": {
+        "config.json": "f49ab6cef0f47a4c2b8180cf6dd54c53c2375c7808aae29a4778bbdaad5d62e7",
+        "hooks/on_exec_error.py": "65d7f70707f2ccac602b9b3bb78bd283571ed535aa2426cef30ff781039132bf",
+        "notes.md": "7eff655add79cc7527abadd7850d95794a84ec59cf59feef960f87d4d813c091"
+      },
+      "match": true,
+      "problems": [],
+      "enabled": true,
+      "fallback": null
+    },
+    "adapter_sha256": "fbe98931a99e70eec5bc1563cbcfd0c55298082c0142bf3aa13524ff26a795c6",
+    "loaded_files": {
+      "config.json": "f49ab6cef0f47a4c2b8180cf6dd54c53c2375c7808aae29a4778bbdaad5d62e7",
+      "hooks/on_exec_error.py": "65d7f70707f2ccac602b9b3bb78bd283571ed535aa2426cef30ff781039132bf",
+      "notes.md": "7eff655add79cc7527abadd7850d95794a84ec59cf59feef960f87d4d813c091"
+    },
+    "harness_dir": "/home/agent/rsi_harness"
+  },
+  "calls": {
+    "n": 10,
+    "ok": 10,
+    "appended": 3,
+    "failed": [],
+    "error_nodes_without_call": []
+  },
+  "fallback": null
+}

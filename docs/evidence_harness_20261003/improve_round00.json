@@ -1,0 +1,117 @@
+{
+ "round": 0,
+ "method": "f7c61660bdaf",
+ "from": "H0",
+ "to": "H1",
+ "outcome": "edited",
+ "published": true,
+ "candidate": "random_acts_of_pizza_r00_16f381905a92",
+ "proposal": {
+  "evidence_ids": [
+   "j1496637:step00:error",
+   "j1496637:step07:error",
+   "j1496637:step16:error",
+   "j1496637:verifier:implausible_validation:1",
+   "j1496637:verifier:selection:1"
+  ],
+  "changed_paths": [
+   "notes.md",
+   "hooks/on_exec_error.py",
+   "config.json"
+  ],
+  "observation": "The run had two clear systemic issues: many nodes used implausibly high validation from stacked/tuned models and the submitted node was one of those flagged nodes despite unflagged alternatives; separately, several first-occurrence execution failures were concrete and repetitive (mixed feature-name types, expensive CV search timing out, and invalid StratifiedKFold arguments).",
+  "hypothesis": "High confidence. AIDE is over-exploring complex stacking/hyperparameter-search patterns that both inflate self-reported validation and consume budget, and without extra guidance it also misses straightforward fixes to common sklearn errors. Adding prompt guidance to prefer believable held-out CV and a submission profile that is more conservative, plus targeted execution-error notes, should steer it toward simpler valid baselines and faster debugging.",
+  "expected_behavior": "In the next run, fewer nodes should attempt expensive nested search/stacking, fewer timeout and repeated propagation errors should appear, and debug attempts after the cited exceptions should directly normalize column names, remove or shrink search, or fix StratifiedKFold shuffle/random_state. Submission choice should more often avoid nodes with suspiciously extreme validation when unflagged alternatives exist.",
+  "regression_risks": "More conservative selection and simpler-model guidance may reduce occasional upside from genuinely strong complex models; lowering tree_topk may narrow exploration diversity. The hook only addresses observed error families and could be irrelevant on unrelated tasks.",
+  "summary": "I added explicit notes to distrust train-like stacked AUCs, favor simple leak-resistant CV, and prefer believable unflagged candidates for submission. I also added targeted error diagnoses for mixed sklearn feature-name types, search-related timeouts, and the StratifiedKFold shuffle/random_state mistake, and enabled a more conservative submission profile."
+ },
+ "summary": "I added explicit notes to distrust train-like stacked AUCs, favor simple leak-resistant CV, and prefer believable unflagged candidates for submission. I also added targeted error diagnoses for mixed sklearn feature-name types, search-related timeouts, and the StratifiedKFold shuffle/random_state mistake, and enabled a more conservative submission profile.",
+ "reason": null,
+ "controller_check": [
+  [
+   "1 boundary",
+   true
+  ],
+  [
+   "2 interface (isolated import + probe call)",
+   true
+  ],
+  [
+   "3 regression (fixed events, determinism, cited evidence replay)",
+   true
+  ],
+  [
+   "4 smoke (adapter.apply on a stand-in Agent)",
+   true
+  ]
+ ],
+ "improver_checks": 1,
+ "diff": "--- H0\n+++ H1\n@@ -1,14 +1,32 @@\n ### notes.md\n+Prefer simple, leak-resistant baselines over elaborate stacking/search.\n+\n+Validation discipline:\n+- Treat any validation ROC AUC far above a plausible baseline with suspicion, especially if it is computed on training predictions, stacked meta-features fitted on the same rows, or after heavy tuning.\n+- For stacking, only report out-of-fold validation from a fully nested procedure. Do not score the meta-model on the same training rows it was fit on.\n+- If a model shows extremely high CV/train AUC, assume leakage or evaluation error and fall back to a simpler pipeline.\n+- When choosing a submission candidate, prefer an unflagged node with believable validation over a flagged node with a much higher score.\n+\n+Implementation discipline:\n+- Keep preprocessing inside the cross-validation pipeline when it depends on labels or selected features.\n+- Favor 3-5 fold CV with one straightforward model family (e.g. TF-IDF + logistic regression / linear model). Avoid nested RandomizedSearchCV inside outer CV unless the search space is tiny.\n+- Under time limits, skip expensive hyperparameter search, large ensembles, and repeated conversion of sparse text matrices to dense arrays.\n+- For text + numeric features, keep text features sparse when possible and use consistent feature names/types.\n+- If combining pandas DataFrames from different sources, ensure all column names have the same type; converting all columns to strings is acceptable.\n+\n+Before finalizing code:\n+- Verify the validation metric is computed on held-out folds only.\n+- Verify submission selection favors believable CV over eye-catching but suspect scores.\n \n ### config.json\n {\n-  \"tree_topk\": 5,\n-  \"tree_recent\": 5,\n+  \"tree_topk\": 3,\n+  \"tree_recent\": 7,\n   \"max_stagnation\": 15,\n   \"debug_prob\": 1.0,\n   \"max_debug_depth\": 20,\n   \"num_drafts\": 5,\n-  \"submission_profile\": false\n+  \"submission_profile\": true\n }\n \n ### hooks/on_exec_error.py\n@@ -21,7 +39,36 @@\n node's execution output as \"[harness note] <string>\", which AIDE's reviewer and debugger read.\n H0 returns None for every event, i.e. stock AIDE behaviour.\"\"\"\n \n+import re\n+\n \n def diagnose(event):\n+    exc_type = event.get(\"exc_type\", \"\") or \"\"\n+    msg = event.get(\"exc_message\", \"\") or \"\"\n+    tail = event.get(\"traceback_tail\", \"\") or \"\"\n+    text = msg + \"\\n\" + tail\n+\n+    if exc_type == \"ValueError\" and \"Feature names are only supported if all input features have string names\" in text:\n+        return (\n+            \"Mixed column-name types caused sklearn to fail. After creating/concatenating feature DataFrames, make \"\n+            \"column names uniform before CV/fit, e.g. X.columns = X.columns.map(str) for both train and test. \"\n+            \"An even safer option is to avoid pandas here and use scipy.sparse.hstack / numpy arrays with consistent schema.\"\n+        )\n+\n+    if exc_type == \"TimeoutError\":\n+        hints = []\n+        if re.search(r\"RandomizedSearchCV|GridSearchCV|_search\\.py|evaluate_candidates|totalling\", text):\n+            hints.append(\"The timeout occurred inside hyperparameter search. Remove nested search or shrink it drastically (very small n_iter/cv), and prefer a single default/near-default model.\")\n+        if \".toarray()\" in event.get(\"code\", \"\"):\n+            hints.append(\"Your code densifies sparse text features with .toarray(); keep TF-IDF sparse to reduce memory/time.\")\n+        hints.append(\"Under this budget, a simple TF-IDF + LogisticRegression baseline is usually safer than stacking/tuning multiple tree models.\")\n+        return \" \".join(hints)[:2000]\n+\n+    if exc_type == \"ValueError\" and \"random_state has no effect since shuffle is False\" in text:\n+        return (\n+            \"StratifiedKFold was created with random_state but shuffle=False. Fix by either using \"\n+            \"StratifiedKFold(..., shuffle=True, random_state=42) or removing random_state.\"\n+        )\n+\n     return None\n \n",
+ "candidate_diff": "--- H0\n+++ candidate\n@@ -1,14 +1,32 @@\n ### notes.md\n+Prefer simple, leak-resistant baselines over elaborate stacking/search.\n+\n+Validation discipline:\n+- Treat any validation ROC AUC far above a plausible baseline with suspicion, especially if it is computed on training predictions, stacked meta-features fitted on the same rows, or after heavy tuning.\n+- For stacking, only report out-of-fold validation from a fully nested procedure. Do not score the meta-model on the same training rows it was fit on.\n+- If a model shows extremely high CV/train AUC, assume leakage or evaluation error and fall back to a simpler pipeline.\n+- When choosing a submission candidate, prefer an unflagged node with believable validation over a flagged node with a much higher score.\n+\n+Implementation discipline:\n+- Keep preprocessing inside the cross-validation pipeline when it depends on labels or selected features.\n+- Favor 3-5 fold CV with one straightforward model family (e.g. TF-IDF + logistic regression / linear model). Avoid nested RandomizedSearchCV inside outer CV unless the search space is tiny.\n+- Under time limits, skip expensive hyperparameter search, large ensembles, and repeated conversion of sparse text matrices to dense arrays.\n+- For text + numeric features, keep text features sparse when possible and use consistent feature names/types.\n+- If combining pandas DataFrames from different sources, ensure all column names have the same type; converting all columns to strings is acceptable.\n+\n+Before finalizing code:\n+- Verify the validation metric is computed on held-out folds only.\n+- Verify submission selection favors believable CV over eye-catching but suspect scores.\n \n ### config.json\n {\n-  \"tree_topk\": 5,\n-  \"tree_recent\": 5,\n+  \"tree_topk\": 3,\n+  \"tree_recent\": 7,\n   \"max_stagnation\": 15,\n   \"debug_prob\": 1.0,\n   \"max_debug_depth\": 20,\n   \"num_drafts\": 5,\n-  \"submission_profile\": false\n+  \"submission_profile\": true\n }\n \n ### hooks/on_exec_error.py\n@@ -21,7 +39,36 @@\n node's execution output as \"[harness note] <string>\", which AIDE's reviewer and debugger read.\n H0 returns None for every event, i.e. stock AIDE behaviour.\"\"\"\n \n+import re\n+\n \n def diagnose(event):\n+    exc_type = event.get(\"exc_type\", \"\") or \"\"\n+    msg = event.get(\"exc_message\", \"\") or \"\"\n+    tail = event.get(\"traceback_tail\", \"\") or \"\"\n+    text = msg + \"\\n\" + tail\n+\n+    if exc_type == \"ValueError\" and \"Feature names are only supported if all input features have string names\" in text:\n+        return (\n+            \"Mixed column-name types caused sklearn to fail. After creating/concatenating feature DataFrames, make \"\n+            \"column names uniform before CV/fit, e.g. X.columns = X.columns.map(str) for both train and test. \"\n+            \"An even safer option is to avoid pandas here and use scipy.sparse.hstack / numpy arrays with consistent schema.\"\n+        )\n+\n+    if exc_type == \"TimeoutError\":\n+        hints = []\n+        if re.search(r\"RandomizedSearchCV|GridSearchCV|_search\\.py|evaluate_candidates|totalling\", text):\n+            hints.append(\"The timeout occurred inside hyperparameter search. Remove nested search or shrink it drastically (very small n_iter/cv), and prefer a single default/near-default model.\")\n+        if \".toarray()\" in event.get(\"code\", \"\"):\n+            hints.append(\"Your code densifies sparse text features with .toarray(); keep TF-IDF sparse to reduce memory/time.\")\n+        hints.append(\"Under this budget, a simple TF-IDF + LogisticRegression baseline is usually safer than stacking/tuning multiple tree models.\")\n+        return \" \".join(hints)[:2000]\n+\n+    if exc_type == \"ValueError\" and \"random_state has no effect since shuffle is False\" in text:\n+        return (\n+            \"StratifiedKFold was created with random_state but shuffle=False. Fix by either using \"\n+            \"StratifiedKFold(..., shuffle=True, random_state=42) or removing random_state.\"\n+        )\n+\n     return None\n \n",
+ "model": "gpt-5.4",
+ "calls": 4,
+ "cost_usd": 0.269795,
+ "transcript": [
+  {
+   "step": 1,
+   "text": null,
+   "calls": [
+    [
+     "read_evidence",
+     "{\"evidence_id\": \"j1496637:step00:error\"}"
+    ],
+    [
+     "read_evidence",
+     "{\"evidence_id\": \"j1496637:step07:error\"}"
+    ],
+    [
+     "read_evidence",
+     "{\"evidence_id\": \"j1496637:step16:error\"}"
+    ],
+    [
+     "read_file",
+     "{\"path\": \"harness/config.json\"}"
+    ]
+   ]
+  },
+  {
+   "step": 2,
+   "text": null,
+   "calls": [
+    [
+     "write_file",
+     "{\"path\": \"harness/notes.md\", \"content\": \"Prefer simple, leak-resistant baselines over elaborate stacking/search.\\n\\nValidation discipline:\\n- Treat any validation ROC AUC far above a plausible baseline with suspicion, especially if it is computed on training predictions, stacked meta-features fitted on the same rows, or after heavy tuning.\\n- For stacking, only report out-of-fold validation from a fully nested procedure. Do not score the meta-model on the same training rows it was fit on.\\n- If a model shows extremely high CV/train AUC, assume leakage or evaluation error and fall back to a simpler pipeline.\\n- When choosing a submission candidate, prefer an unflagged node with believable validation over a flagged node with a much higher score.\\n\\nImplementation discipline:\\n- Keep preprocessing inside the cross-validation pipeline when it depends on labels or selected features.\\n- Favor 3-5 fold CV with one straightforward model family (e.g. TF-IDF + logistic regression / linear model). Avoid nested RandomizedSearchCV inside outer CV unless the search space is tiny.\\n- Under time limits, skip expensive hyperparameter search, large ensembles, and repeated conversion of sparse text matrices to dense arrays.\\n- For text + numeric features, keep text features sparse when possible and use consistent feature names/types.\\n- If combining pandas DataFrames from different sources, ensure all column names have the same type; converting all columns to strings is acceptable.\\n\\nBefore finalizing code:\\n- Verify the validation metric is computed on held-out folds only.\\n- Verify submission selection favors believable CV over eye-catching but suspect scores.\\n\"}"
+    ],
+    [
+     "write_file",
+     "{\"path\": \"harness/hooks/on_exec_error.py\", \"content\": \"\\\"\\\"\\\"Called by the fixed adapter after a node's code raised an exception.\\n\\nevent = {\\\"interface\\\": \\\"on_exec_error/1\\\", \\\"exc_type\\\": str, \\\"exc_message\\\": str,\\n         \\\"traceback_tail\\\": str (last lines of the execution output), \\\"code\\\": str (the node's code)}\\n\\nReturn None to leave the execution output unchanged, or a short string; the adapter appends it to the\\nnode's execution output as \\\"[harness note] <string>\\\", which AIDE's reviewer and debugger read.\\nH0 returns None for every event, i.e. stock AIDE behaviour.\\\"\\\"\\\"\\n\\nimport re\\n\\n\\ndef diagnose(event):\\n    exc_type = event.get(\\\"exc_type\\\", \\\"\\\") or \\\"\\\"\\n    msg = event.get(\\\"exc_message\\\", \\\"\\\") or \\\"\\\"\\n    tail = event.get(\\\"traceback_tail\\\", \\\"\\\") or \\\"\\\"\\n    text = msg + \\\"\\\\n\\\" + tail\\n\\n    if exc_type == \\\"ValueError\\\" and \\\"Feature names are only supported if all input features have string names\\\" in text:\\n        return (\\n            \\\"Mixed column-name types caused sklearn to fail. After creating/concatenating feature DataFrames, make \\\"\\n            \\\"column names uniform before CV/fit, e.g. X.columns = X.columns.map(str) for both train and test. \\\"\\n            \\\"An even safer option is to avoid pandas here and use scipy.sparse.hstack / numpy arrays with consistent schema.\\\"\\n        )\\n\\n    if exc_type == \\\"TimeoutError\\\":\\n        hints = []\\n        if re.search(r\\\"RandomizedSearchCV|GridSearchCV|_search\\\\.py|evaluate_candidates|totalling\\\", text):\\n            hints.append(\\\"The timeout occurred inside hyperparameter search. Remove nested search or shrink it drastically (very small n_iter/cv), and prefer a single default/near-default model.\\\")\\n        if \\\".toarray()\\\" in event.get(\\\"code\\\", \\\"\\\"):\\n            hints.append(\\\"Your code densifies sparse text features with .toarray(); keep TF-IDF sparse to reduce memory/time.\\\")\\n        hints.append(\\\"Under this budget, a simple TF-IDF + LogisticRegression baseline is usually safer than stacking/tuning multiple tree models.\\\")\\n        return \\\" \\\".join(hints)[:2000]\\n\\n    if exc_type == \\\"ValueError\\\" and \\\"random_state has no effect since shuffle is False\\\" in text:\\n        return (\\n            \\\"StratifiedKFold was created with random_state but shuffle=False. Fix by either using \\\"\\n            \\\"StratifiedKFold(..., shuffle=True, random_state=42) or removing random_state.\\\"\\n        )\\n\\n    return None\\n\"}"
+    ],
+    [
+     "write_file",
+     "{\"path\": \"harness/config.json\", \"content\": \"{\\n  \\\"tree_topk\\\": 3,\\n  \\\"tree_recent\\\": 7,\\n  \\\"max_stagnation\\\": 15,\\n  \\\"debug_prob\\\": 1.0,\\n  \\\"max_debug_depth\\\": 20,\\n  \\\"num_drafts\\\": 5,\\n  \\\"submission_profile\\\": true\\n}\\n\"}"
+    ]
+   ]
+  },
+  {
+   "step": 3,
+   "text": null,
+   "calls": [
+    [
+     "check",
+     "{\"evidence_ids\":[\"j1496637:step00:error\",\"j1496637:step07:error\",\"j1496637:step16:error\",\"j1496637:verifier:implausible_validation:1\",\"j1496637:verifier:selection:1\"]}"
+    ]
+   ]
+  },
+  {
+   "step": 4,
+   "text": null,
+   "calls": [
+    [
+     "finish",
+     "{\"evidence_ids\":[\"j1496637:step00:error\",\"j1496637:step07:error\",\"j1496637:step16:error\",\"j1496637:verifier:implausible_validation:1\",\"j1496637:verifier:selection:1\"],\"observation\":\"The run had two clear systemic issues: many nodes used implausibly high validation from stacked/tuned models and the submitted node was one of those flagged nodes despite unflagged alternatives; separately, several first-occurrence execution failures were concrete and repetitive (mixed feature-name types, expensive CV search timing out, and invalid StratifiedKFold arguments).\",\"hypothesis\":\"High confidence. AIDE is over-exploring complex stacking/hyperparameter-search patterns that both inflate self-reported validation and consume budget, and without extra guidance it also misses straightforward fixes to common sklearn errors. Adding prompt guidance to prefer believable held-out CV and a submission profile that is more conservative, plus targeted execution-error notes, should steer it toward simpler valid baselines and faster debugging.\",\"changed_paths\":[\"harness/notes.md\",\"harness/hooks/on_exec_error.py\",\"harness/config.json\"],\"expected_behavior\":\"In the next run, fewer nodes should attempt expensive nested search/stacking, fewer timeout and repeated propagation errors should appear, and debug attempts after the cited exceptions should directly normalize column names, remove or shrink search, or fix StratifiedKFold shuffle/random_state. Submission choice should more often avoid nodes with suspiciously extreme validation when unflagged alternatives exist.\",\"regression_risks\":\"More conservative selection and simpler-model guidance may reduce occasional upside from genuinely strong complex models; lowering tree_topk may narrow exploration diversity. The hook only addresses observed error families and could be irrelevant on unrelated tasks.\",\"summary\":\"I added explicit notes to distrust train-like stacked AUCs, favor simple leak-resistant CV, and prefer believable unflagged candidates for submission. I also added targeted error diagnoses for mixed sklearn feature-name types, search-related timeouts, and the StratifiedKFold shuffle/random_state mistake, and enabled a more conservative submission profile.\"}"
+    ]
+   ]
+  }
+ ],
+ "at": "2026-10-03T08:13:26+00:00"
+}

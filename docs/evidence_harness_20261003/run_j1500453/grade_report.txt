@@ -1,0 +1,19 @@
+[2026-10-03 06:44:50,469] [cli.py:202] Competition report:
+[2026-10-03 06:44:50,469] [cli.py:203] {
+    "competition_id": "random-acts-of-pizza",
+    "score": 0.64059,
+    "gold_threshold": 0.97908,
+    "silver_threshold": 0.76482,
+    "bronze_threshold": 0.6921,
+    "median_threshold": 0.5995950000000001,
+    "any_medal": false,
+    "gold_medal": false,
+    "silver_medal": false,
+    "bronze_medal": false,
+    "above_median": true,
+    "submission_exists": true,
+    "valid_submission": true,
+    "is_lower_better": false,
+    "created_at": "2026-10-03T06:44:50.469526",
+    "submission_path": "/users/jchen53/mlebench-aide/runs/random-acts-of-pizza/20261003_041359_rsi_rsi_7eff655add_h16f381905a92/submission/submission.csv"
+}

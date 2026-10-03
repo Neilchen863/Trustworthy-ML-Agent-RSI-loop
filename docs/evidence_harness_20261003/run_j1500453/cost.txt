@@ -1,0 +1,15 @@
+AIDE run cost estimate
+========================================
+run dir: /users/jchen53/mlebench-aide/runs/random-acts-of-pizza/20261003_041359_rsi_rsi_7eff655add_h16f381905a92
+source: /users/jchen53/mlebench-aide/runs/random-acts-of-pizza/20261003_041359_rsi_rsi_7eff655add_h16f381905a92/logs/token_usage.jsonl
+
+model: gpt-4o-2024-08-06
+  calls: 87   in: 461,285 tok   out: 31,299 tok
+  cost: $1.4662  (@ $2.5/1M in, $10.0/1M out)
+
+----------------------------------------
+TOTAL calls: 87
+TOTAL tokens: 461,285 in + 31,299 out = 492,584
+TOTAL ESTIMATED COST: $1.4662 USD
+
+Estimate from logged tokens; authoritative figure: https://platform.openai.com/usage

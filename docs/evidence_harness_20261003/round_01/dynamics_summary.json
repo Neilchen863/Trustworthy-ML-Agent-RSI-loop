@@ -1,0 +1,77 @@
+{
+ "summary": {
+  "n_nodes": 25,
+  "n_scored": 14,
+  "n_error": 10,
+  "n_buggy_no_exception": 1,
+  "n_unknown": 0,
+  "error_types": {
+   "TimeoutError": 3,
+   "ValueError": 2,
+   "TypeError": 2,
+   "NameError": 1,
+   "ModuleNotFoundError": 1,
+   "KeyError": 1
+  },
+  "error_signatures_first_in_lineage": {
+   "TimeoutError:  @ rfecv.fit(X_train_combined_csr, y_train)": 2,
+   "NameError: name 'make_pipeline' is not defined": 1,
+   "ValueError: X has N features, but LogisticRegression is expecting N features as input.": 1,
+   "TypeError: 'coo_matrix' object is not subscriptable": 1,
+   "TimeoutError: ": 1,
+   "ValueError: X has N features, but RandomForestClassifier is expecting N features as input. @ y_pred_proba = stacking_model.predict_proba(X_test_combined)[:, 1]": 1,
+   "ModuleNotFoundError: No module named 'vaderSentiment' @ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer": 1,
+   "TypeError: cv() got an unexpected keyword argument 'early_stopping_rounds' @ cv_results = lgb.cv(": 1,
+   "KeyError: ['number_of_upvotes_of_request_at_retrieval', 'post_was_edited'] not in index @ X_test_num = scaler.transform(test_df[num_features].fillna(0))": 1
+  },
+  "n_errors_first_in_lineage": 10,
+  "n_errors_suspected_propagation": 0,
+  "timing_coverage": 1.0,
+  "exec_time_total_s": 2183.3,
+  "token_coverage_per_node": 0.0,
+  "tokens_run": {
+   "calls": 87,
+   "in": 461285,
+   "out": 31299,
+   "source": {
+    "artifact": "logs/token_usage.jsonl"
+   }
+  },
+  "cost_usd_run": 1.4662,
+  "cost_missing_reason": null,
+  "best_raw_val": {
+   "step": 23,
+   "val": 0.6840721749853963
+  },
+  "best_unflagged_val": {
+   "step": 23,
+   "val": 0.6840721749853963
+  },
+  "n_flagged_scored": 0,
+  "children_of_error_nodes": 4,
+  "children_clearing_parent_error": 4,
+  "harness_loads": 1,
+  "harness_calls": 10,
+  "harness_calls_appended": 3,
+  "harness_calls_failed": 0
+ },
+ "submission": {
+  "node_id": "bf21631fa02c4ea8aed3cf490bd63f7e",
+  "step": 23,
+  "val": 0.6840721749853963,
+  "source": {
+   "artifact": "code/node_id.txt"
+  },
+  "selection_record": {
+   "artifact": "logs/aide.log",
+   "lines": [
+    240
+   ],
+   "text": "-03 06:44:32,220] INFO: [agent submit] LLM chose node=bf21631f (This attempt achieved the highest validation metric (AUC-ROC of 0.684) among all candidates, indicating the best predict ...[truncated])"
+  }
+ },
+ "model_training": {
+  "curves": null,
+  "missing_reason": "not_logged (no fixed collector for per-epoch metrics; values printed by node code would be self_reported)"
+ }
+}

@@ -1,0 +1,70 @@
+{
+ "summary": {
+  "n_nodes": 25,
+  "n_scored": 16,
+  "n_error": 9,
+  "n_buggy_no_exception": 0,
+  "n_unknown": 0,
+  "error_types": {
+   "TimeoutError": 5,
+   "ValueError": 4
+  },
+  "error_signatures_first_in_lineage": {
+   "ValueError: All the N fits failed.": 1,
+   "TimeoutError:  @ lgb_random_search.fit(X_train, y_train)": 1,
+   "TimeoutError:  @ xgb_random_search.fit(X_train, y_train)": 1,
+   "ValueError: Setting a random_state has no effect since shuffle is False. You should leave ra @ StratifiedKFold(n_splits=2, random_state=42).split(train_meta_features, y)": 1,
+   "TimeoutError:  @ pipeline.fit(train_features, y)": 1,
+   "TimeoutError:  @ grid_cv.fit(train_features, y)": 1
+  },
+  "n_errors_first_in_lineage": 6,
+  "n_errors_suspected_propagation": 3,
+  "timing_coverage": 1.0,
+  "exec_time_total_s": 5080.2,
+  "token_coverage_per_node": 0.0,
+  "tokens_run": {
+   "calls": 89,
+   "in": 460718,
+   "out": 34237,
+   "source": {
+    "artifact": "logs/token_usage.jsonl"
+   }
+  },
+  "cost_usd_run": 1.4942,
+  "cost_missing_reason": null,
+  "best_raw_val": {
+   "step": 22,
+   "val": 0.9955630130387412
+  },
+  "best_unflagged_val": {
+   "step": 18,
+   "val": 0.6524291242737845
+  },
+  "n_flagged_scored": 10,
+  "children_of_error_nodes": 4,
+  "children_clearing_parent_error": 1,
+  "harness_loads": 0,
+  "harness_calls": 0,
+  "harness_calls_appended": 0,
+  "harness_calls_failed": 0
+ },
+ "submission": {
+  "node_id": "64af21206f6941d9b36e1162050ab7f4",
+  "step": 22,
+  "val": 0.9955630130387412,
+  "source": {
+   "artifact": "code/node_id.txt"
+  },
+  "selection_record": {
+   "artifact": "logs/aide.log",
+   "lines": [
+    243
+   ],
+   "text": "-02 13:12:11,153] INFO: [agent submit] LLM chose node=64af2120 (This attempt has the highest validation metric of 0.9956, indicating the best performance among all attempts. Additional ...[truncated])"
+  }
+ },
+ "model_training": {
+  "curves": null,
+  "missing_reason": "not_logged (no fixed collector for per-epoch metrics; values printed by node code would be self_reported)"
+ }
+}

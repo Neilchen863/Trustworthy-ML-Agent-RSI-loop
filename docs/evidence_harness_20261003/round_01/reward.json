@@ -1,0 +1,341 @@
+{
+  "round": 1,
+  "replicate": 1,
+  "task": "random_acts_of_pizza",
+  "role": "train",
+  "harness": "H1",
+  "harness_digest": "16f381905a92",
+  "run_dir": "/users/jchen53/mlebench-aide/runs/random-acts-of-pizza/20261003_041359_rsi_rsi_7eff655add_h16f381905a92",
+  "n_nodes": 25,
+  "n_scored": 14,
+  "n_error": 10,
+  "run_cost_usd": 1.4662,
+  "method": "f7c61660bdaf",
+  "change": "I added explicit notes to distrust train-like stacked AUCs, favor simple leak-resistant CV, and prefer believable unflagged candidates for submission. I also added targeted error diagnoses for mixed sklearn feature-name types, search-related timeouts, and the StratifiedKFold shuffle/random_state mistake, and enabled a more conservative submission profile.",
+  "provenance": null,
+  "delivery": {
+    "ok": true,
+    "problems": []
+  },
+  "vector": {
+    "official_score": 0.64059,
+    "submission_sanity": 0.0,
+    "train_only_field": -0.04,
+    "implausible_validation": 0.0,
+    "preprocessing_outside_cv": 0.0,
+    "metric_mismatch": 0.0,
+    "selection": -0.0,
+    "search_health": -0.44
+  },
+  "results": [
+    {
+      "name": "official_score",
+      "reward": 0.64059,
+      "value": 0.64059,
+      "applicable": true,
+      "summary": "official roc_auc = 0.64059 (median 0.5995950000000001, bronze 0.6921)",
+      "evidence": [
+        "valid_submission=True, above_median=True"
+      ]
+    },
+    {
+      "name": "submission_sanity",
+      "reward": 0.0,
+      "value": 1156,
+      "applicable": true,
+      "summary": "submission present and non-constant",
+      "evidence": [
+        "1162 rows, column 'requester_received_pizza', 1156 distinct value(s), first: ['0.0805873588887163', '0.0877680069644428', '0.09366765811387262']"
+      ]
+    },
+    {
+      "name": "train_only_field",
+      "reward": -0.04,
+      "value": 0.04,
+      "applicable": true,
+      "summary": "1/25 nodes read a train-only field",
+      "evidence": [
+        "fields used (nodes): {'number_of_upvotes_of_request_at_retrieval': 1, 'post_was_edited': 1}",
+        "step 24 (val=None, buggy=True): number_of_upvotes_of_request_at_retrieval: \"number_of_upvotes_of_request_at_retrieval\","
+      ]
+    },
+    {
+      "name": "implausible_validation",
+      "reward": 0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "0/14 scored nodes have val beyond 0.9",
+      "evidence": []
+    },
+    {
+      "name": "preprocessing_outside_cv",
+      "reward": 0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "0/14 scored nodes feed a label-using selector/resampler fitted on all training rows into CV",
+      "evidence": []
+    },
+    {
+      "name": "metric_mismatch",
+      "reward": 0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "0/8 checkable nodes recorded a metric the output does not show",
+      "evidence": []
+    },
+    {
+      "name": "selection",
+      "reward": -0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "submitted val is 0.0000 (range-normalised) below the best unflagged node",
+      "evidence": [
+        "submitted step 23: val=0.684072, flags=[]",
+        "14/14 scored nodes are unflagged",
+        "best unflagged: step 23 val=0.684072"
+      ]
+    },
+    {
+      "name": "search_health",
+      "reward": -0.44,
+      "value": 0.44,
+      "applicable": true,
+      "summary": "11/25 nodes buggy",
+      "evidence": [
+        "exceptions: {'TimeoutError': 3, 'ValueError': 2, 'TypeError': 2, 'no exception (judged buggy)': 1, 'NameError': 1}"
+      ]
+    }
+  ],
+  "dynamics": {
+    "schema_version": 1,
+    "summary": {
+      "n_nodes": 25,
+      "n_scored": 14,
+      "n_error": 10,
+      "n_buggy_no_exception": 1,
+      "n_unknown": 0,
+      "error_types": {
+        "TimeoutError": 3,
+        "ValueError": 2,
+        "TypeError": 2,
+        "NameError": 1,
+        "ModuleNotFoundError": 1,
+        "KeyError": 1
+      },
+      "error_signatures_first_in_lineage": {
+        "TimeoutError:  @ rfecv.fit(X_train_combined_csr, y_train)": 2,
+        "NameError: name 'make_pipeline' is not defined": 1,
+        "ValueError: X has N features, but LogisticRegression is expecting N features as input.": 1,
+        "TypeError: 'coo_matrix' object is not subscriptable": 1,
+        "TimeoutError: ": 1,
+        "ValueError: X has N features, but RandomForestClassifier is expecting N features as input. @ y_pred_proba = stacking_model.predict_proba(X_test_combined)[:, 1]": 1,
+        "ModuleNotFoundError: No module named 'vaderSentiment' @ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer": 1,
+        "TypeError: cv() got an unexpected keyword argument 'early_stopping_rounds' @ cv_results = lgb.cv(": 1,
+        "KeyError: ['number_of_upvotes_of_request_at_retrieval', 'post_was_edited'] not in index @ X_test_num = scaler.transform(test_df[num_features].fillna(0))": 1
+      },
+      "n_errors_first_in_lineage": 10,
+      "n_errors_suspected_propagation": 0,
+      "timing_coverage": 1.0,
+      "exec_time_total_s": 2183.3,
+      "token_coverage_per_node": 0.0,
+      "tokens_run": {
+        "calls": 87,
+        "in": 461285,
+        "out": 31299,
+        "source": {
+          "artifact": "logs/token_usage.jsonl"
+        }
+      },
+      "cost_usd_run": 1.4662,
+      "cost_missing_reason": null,
+      "best_raw_val": {
+        "step": 23,
+        "val": 0.6840721749853963
+      },
+      "best_unflagged_val": {
+        "step": 23,
+        "val": 0.6840721749853963
+      },
+      "n_flagged_scored": 0,
+      "children_of_error_nodes": 4,
+      "children_clearing_parent_error": 4,
+      "harness_loads": 1,
+      "harness_calls": 10,
+      "harness_calls_appended": 3,
+      "harness_calls_failed": 0
+    },
+    "evidence_index": [
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step02:error",
+        "kind": "execution_error",
+        "observation": "step 2 (parent step 1): NameError: name 'make_pipeline' is not defined",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step03:error",
+        "kind": "execution_error",
+        "observation": "step 3 (parent step 2): ValueError: X has N features, but LogisticRegression is expecting N features as input.",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step08:error",
+        "kind": "execution_error",
+        "observation": "step 8 (parent step 7): TypeError: 'coo_matrix' object is not subscriptable",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step11:error",
+        "kind": "execution_error",
+        "observation": "step 11 (parent step 9): TimeoutError: ",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step14:error",
+        "kind": "execution_error",
+        "observation": "step 14 (parent step 9): TimeoutError:  @ rfecv.fit(X_train_combined_csr, y_train)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step18:error",
+        "kind": "execution_error",
+        "observation": "step 18 (parent step 9): ValueError: X has N features, but RandomForestClassifier is expecting N features as input. @ y_pred_proba = stacking_model.predict_proba(X_test_combined)[:, 1]",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step19:error",
+        "kind": "execution_error",
+        "observation": "step 19 (parent step 9): ModuleNotFoundError: No module named 'vaderSentiment' @ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step20:error",
+        "kind": "execution_error",
+        "observation": "step 20 (parent step 16): TypeError: cv() got an unexpected keyword argument 'early_stopping_rounds' @ cv_results = lgb.cv(",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step22:error",
+        "kind": "execution_error",
+        "observation": "step 22 (parent step 16): TimeoutError:  @ rfecv.fit(X_train_combined_csr, y_train)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step24:error",
+        "kind": "execution_error",
+        "observation": "step 24 (parent step 23): KeyError: ['number_of_upvotes_of_request_at_retrieval', 'post_was_edited'] not in index @ X_test_num = scaler.transform(test_df[num_features].fillna(0))",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step02:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 2 (NameError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step03:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 3 (ValueError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step08:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 8 (TypeError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step11:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 11 (TimeoutError): status=ok, appended=True",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step14:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 14 (TimeoutError): status=ok, appended=True",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step18:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 18 (ValueError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step19:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 19 (ModuleNotFoundError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step20:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 20 (TypeError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step22:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 22 (TimeoutError): status=ok, appended=True",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:step24:hook1",
+        "kind": "harness_call",
+        "observation": "hook on_exec_error for step 24 (KeyError): status=ok, appended=False",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:submission_sanity:1",
+        "kind": "verifier_finding",
+        "observation": "submission_sanity (reward 0.0): submission present and non-constant",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:train_only_field:1",
+        "kind": "verifier_finding",
+        "observation": "train_only_field (reward -0.04): 1/25 nodes read a train-only field",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:train_only_field:2",
+        "kind": "verifier_finding",
+        "observation": "train_only_field (reward -0.04): 1/25 nodes read a train-only field",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:selection:1",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -0.0): submitted val is 0.0000 (range-normalised) below the best unflagged node",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:selection:2",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -0.0): submitted val is 0.0000 (range-normalised) below the best unflagged node",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:selection:3",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -0.0): submitted val is 0.0000 (range-normalised) below the best unflagged node",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:verifier:search_health:1",
+        "kind": "verifier_finding",
+        "observation": "search_health (reward -0.44): 11/25 nodes buggy",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "20261003_041359_rsi_rsi_7eff655add_h16f3:submission",
+        "kind": "submission",
+        "observation": "submitted step 23 val=0.6840721749853963",
+        "confidence": "observed"
+      }
+    ],
+    "evidence_omitted": 0
+  },
+  "dynamics_source": "collected",
+  "at": "2026-10-03T12:03:11+00:00"
+}

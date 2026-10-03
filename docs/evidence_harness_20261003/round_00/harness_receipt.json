@@ -1,0 +1,5 @@
+{
+  "applicable": false,
+  "reason": "reused run started before/outside this state; no adapter events",
+  "provenance": "j1496637: stock H0 (empty notes, default config) from .state round 0, v3 overlay without the harness adapter, method a4c267fd4240-era code; no adapter events"
+}

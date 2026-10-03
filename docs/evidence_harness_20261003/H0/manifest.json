@@ -1,0 +1,25 @@
+{
+ "allowed_paths": [
+  "notes.md",
+  "config.json",
+  "hooks/on_exec_error.py"
+ ],
+ "digest": "4c179282cfd5",
+ "execution_base": {
+  "overlay": {
+   "path": "/users/jchen53/rsi-loop-overlays/v4/agent_fixes_v4.overlay",
+   "sha256": "c5084259d00d1bfe3d1c8f0007b2b091644dd3963bf187a9dbf2e63416f69b46",
+   "size": 1073741824
+  }
+ },
+ "files": {
+  "config.json": "0cf6a2dedd24ee7e9bf2a7f430398df221224f4d3c176216ea668bd2d882bd22",
+  "hooks/on_exec_error.py": "5e03f63090c82c5fc939aa9000c4d72776b650da86ba43144268a272676d9547",
+  "notes.md": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "interface": {
+  "on_exec_error": 1
+ },
+ "method_digest": "f7c61660bdaf",
+ "parent_digest": null
+}

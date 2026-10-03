@@ -1,0 +1,400 @@
+{
+  "round": 0,
+  "replicate": 1,
+  "task": "random_acts_of_pizza",
+  "role": "train",
+  "harness": "H0",
+  "harness_digest": "4c179282cfd5",
+  "run_dir": "/users/jchen53/mlebench-aide/runs/random-acts-of-pizza/20261002_114015_gpt4o_2h_nohint_j1496637",
+  "n_nodes": 25,
+  "n_scored": 16,
+  "n_error": 9,
+  "run_cost_usd": 1.4942,
+  "method": "f7c61660bdaf",
+  "change": "",
+  "provenance": "j1496637: stock H0 (empty notes, default config) from .state round 0, v3 overlay without the harness adapter, method a4c267fd4240-era code; no adapter events",
+  "delivery": {
+    "ok": true,
+    "problems": []
+  },
+  "vector": {
+    "official_score": 0.59904,
+    "submission_sanity": 0.0,
+    "train_only_field": -0.0,
+    "implausible_validation": -1.0,
+    "preprocessing_outside_cv": -0.0625,
+    "metric_mismatch": 0.0,
+    "selection": -1.0,
+    "search_health": -0.36
+  },
+  "results": [
+    {
+      "name": "official_score",
+      "reward": 0.59904,
+      "value": 0.59904,
+      "applicable": true,
+      "summary": "official roc_auc = 0.59904 (median 0.5995950000000001, bronze 0.6921)",
+      "evidence": [
+        "valid_submission=True, above_median=False"
+      ]
+    },
+    {
+      "name": "submission_sanity",
+      "reward": 0.0,
+      "value": 1159,
+      "applicable": true,
+      "summary": "submission present and non-constant",
+      "evidence": [
+        "1162 rows, column 'requester_received_pizza', 1159 distinct value(s), first: ['0.0013247889', '0.0017379523', '0.0017814348']"
+      ]
+    },
+    {
+      "name": "train_only_field",
+      "reward": -0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "0/25 nodes read a train-only field",
+      "evidence": [
+        "fields used (nodes): {}"
+      ]
+    },
+    {
+      "name": "implausible_validation",
+      "reward": -1.0,
+      "value": 0.5625,
+      "applicable": true,
+      "summary": "9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+      "evidence": [
+        "step 5: val=0.977478 — reviewer: The code executed successfully, producing a submission file in the required format. The model used a stacking approach with logistic regression, random forest, ",
+        "    step 5 code: xgb = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 5 code: meta_model = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 5 code: print(f\"Stacking Meta-model ROC AUC: {roc_auc_score(y, train_meta_preds)}\")",
+        "step 6: val=0.985474 — reviewer: The code executed successfully and produced a submission file named 'submission.csv' in the './submission/' directory. The stacking meta-model achieved a ROC AU",
+        "    step 6 code: xgb = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 6 code: meta_model = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 6 code: print(f\"Stacking Meta-model ROC AUC: {roc_auc_score(y, train_meta_preds)}\")",
+        "step 12: val=0.985474 — reviewer: The code executed successfully, training a stacking model using Logistic Regression, Random Forest, and XGBoost. It produced the predictions on the test set and",
+        "    step 12 code: xgb = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 12 code: meta_model = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 12 code: print(f\"Stacking Meta-model ROC AUC: {roc_auc_score(y, train_meta_preds)}\")",
+        "step 13: val=0.98118 — reviewer: The code successfully executed without any bugs, performing hyperparameter tuning and model stacking using logistic regression, random forest, and XGBoost class",
+        "    step 13 code: xgb = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 13 code: meta_model = XGBClassifier(use_label_encoder=False, eval_metric=\"auc\", random_state=42)",
+        "    step 13 code: print(f\"Stacking Meta-model ROC AUC: {roc_auc_score(y, train_meta_preds)}\")"
+      ]
+    },
+    {
+      "name": "preprocessing_outside_cv",
+      "reward": -0.0625,
+      "value": 0.0625,
+      "applicable": true,
+      "summary": "1/16 scored nodes feed a label-using selector/resampler fitted on all training rows into CV",
+      "evidence": [
+        "step 15 (val=0.739928) CONFIRMED: rfecv.fit(X_train_full, y_train)"
+      ]
+    },
+    {
+      "name": "metric_mismatch",
+      "reward": 0.0,
+      "value": 0.0,
+      "applicable": true,
+      "summary": "0/10 checkable nodes recorded a metric the output does not show",
+      "evidence": []
+    },
+    {
+      "name": "selection",
+      "reward": -1.0,
+      "value": null,
+      "applicable": true,
+      "summary": "submitted a flagged node (implausible_val) although 6 unflagged node(s) existed",
+      "evidence": [
+        "submitted step 22: val=0.995563, flags=['implausible_val']",
+        "6/16 scored nodes are unflagged",
+        "best unflagged: step 18 val=0.652429"
+      ]
+    },
+    {
+      "name": "search_health",
+      "reward": -0.36,
+      "value": 0.36,
+      "applicable": true,
+      "summary": "9/25 nodes buggy",
+      "evidence": [
+        "exceptions: {'TimeoutError': 5, 'ValueError': 4}"
+      ]
+    }
+  ],
+  "dynamics": {
+    "schema_version": 1,
+    "summary": {
+      "n_nodes": 25,
+      "n_scored": 16,
+      "n_error": 9,
+      "n_buggy_no_exception": 0,
+      "n_unknown": 0,
+      "error_types": {
+        "TimeoutError": 5,
+        "ValueError": 4
+      },
+      "error_signatures_first_in_lineage": {
+        "ValueError: All the N fits failed.": 1,
+        "TimeoutError:  @ lgb_random_search.fit(X_train, y_train)": 1,
+        "TimeoutError:  @ xgb_random_search.fit(X_train, y_train)": 1,
+        "ValueError: Setting a random_state has no effect since shuffle is False. You should leave ra @ StratifiedKFold(n_splits=2, random_state=42).split(train_meta_features, y)": 1,
+        "TimeoutError:  @ pipeline.fit(train_features, y)": 1,
+        "TimeoutError:  @ grid_cv.fit(train_features, y)": 1
+      },
+      "n_errors_first_in_lineage": 6,
+      "n_errors_suspected_propagation": 3,
+      "timing_coverage": 1.0,
+      "exec_time_total_s": 5080.2,
+      "token_coverage_per_node": 0.0,
+      "tokens_run": {
+        "calls": 89,
+        "in": 460718,
+        "out": 34237,
+        "source": {
+          "artifact": "logs/token_usage.jsonl"
+        }
+      },
+      "cost_usd_run": 1.4942,
+      "cost_missing_reason": null,
+      "best_raw_val": {
+        "step": 22,
+        "val": 0.9955630130387412
+      },
+      "best_unflagged_val": {
+        "step": 18,
+        "val": 0.6524291242737845
+      },
+      "n_flagged_scored": 10,
+      "children_of_error_nodes": 4,
+      "children_clearing_parent_error": 1,
+      "harness_loads": 0,
+      "harness_calls": 0,
+      "harness_calls_appended": 0,
+      "harness_calls_failed": 0
+    },
+    "evidence_index": [
+      {
+        "evidence_id": "j1496637:step00:error",
+        "kind": "execution_error",
+        "observation": "step 0 (parent step None): ValueError: All the N fits failed.",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step01:error",
+        "kind": "execution_error",
+        "observation": "step 1 (parent step 0): ValueError: All the N fits failed.",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step02:error",
+        "kind": "execution_error",
+        "observation": "step 2 (parent step 1): ValueError: All the N fits failed.",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step07:error",
+        "kind": "execution_error",
+        "observation": "step 7 (parent step 6): TimeoutError:  @ lgb_random_search.fit(X_train, y_train)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step08:error",
+        "kind": "execution_error",
+        "observation": "step 8 (parent step 7): TimeoutError:  @ lgb_random_search.fit(X_train, y_train)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step09:error",
+        "kind": "execution_error",
+        "observation": "step 9 (parent step 6): TimeoutError:  @ xgb_random_search.fit(X_train, y_train)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step16:error",
+        "kind": "execution_error",
+        "observation": "step 16 (parent step 6): ValueError: Setting a random_state has no effect since shuffle is False. You should leave ra @ StratifiedKFold(n_splits=2, random_state=42).split(train_meta_features, y)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step17:error",
+        "kind": "execution_error",
+        "observation": "step 17 (parent step 6): TimeoutError:  @ pipeline.fit(train_features, y)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step21:error",
+        "kind": "execution_error",
+        "observation": "step 21 (parent step 20): TimeoutError:  @ grid_cv.fit(train_features, y)",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:submission_sanity:1",
+        "kind": "verifier_finding",
+        "observation": "submission_sanity (reward 0.0): submission present and non-constant",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:train_only_field:1",
+        "kind": "verifier_finding",
+        "observation": "train_only_field (reward -0.0): 0/25 nodes read a train-only field",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:1",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:2",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:3",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:4",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:5",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:6",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:7",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:8",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:9",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:10",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:11",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:12",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:13",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:14",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:15",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:implausible_validation:16",
+        "kind": "verifier_finding",
+        "observation": "implausible_validation (reward -1.0): 9/16 scored nodes have val beyond 0.9; the submitted node is one of them",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:preprocessing_outside_cv:1",
+        "kind": "verifier_finding",
+        "observation": "preprocessing_outside_cv (reward -0.0625): 1/16 scored nodes feed a label-using selector/resampler fitted on all training rows into CV",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:selection:1",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -1.0): submitted a flagged node (implausible_val) although 6 unflagged node(s) existed",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:selection:2",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -1.0): submitted a flagged node (implausible_val) although 6 unflagged node(s) existed",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:selection:3",
+        "kind": "verifier_finding",
+        "observation": "selection (reward -1.0): submitted a flagged node (implausible_val) although 6 unflagged node(s) existed",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:verifier:search_health:1",
+        "kind": "verifier_finding",
+        "observation": "search_health (reward -0.36): 9/25 nodes buggy",
+        "confidence": "observed"
+      },
+      {
+        "evidence_id": "j1496637:step01:propagation",
+        "kind": "propagation",
+        "observation": "step 1 repeats the error signature of its parent step 0 (suspected propagation, not independent)",
+        "confidence": "suspected"
+      },
+      {
+        "evidence_id": "j1496637:step02:propagation",
+        "kind": "propagation",
+        "observation": "step 2 repeats the error signature of its parent step 1 (suspected propagation, not independent)",
+        "confidence": "suspected"
+      },
+      {
+        "evidence_id": "j1496637:step08:propagation",
+        "kind": "propagation",
+        "observation": "step 8 repeats the error signature of its parent step 7 (suspected propagation, not independent)",
+        "confidence": "suspected"
+      },
+      {
+        "evidence_id": "j1496637:submission",
+        "kind": "submission",
+        "observation": "submitted step 22 val=0.9955630130387412",
+        "confidence": "observed"
+      }
+    ],
+    "evidence_omitted": 0
+  },
+  "dynamics_source": "reused run (no adapter events)",
+  "at": "2026-10-03T08:12:52+00:00"
+}

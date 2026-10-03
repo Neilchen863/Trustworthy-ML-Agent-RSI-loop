@@ -1,0 +1,9 @@
+{
+  "tree_topk": 3,
+  "tree_recent": 7,
+  "max_stagnation": 15,
+  "debug_prob": 1.0,
+  "max_debug_depth": 20,
+  "num_drafts": 5,
+  "submission_profile": true
+}
