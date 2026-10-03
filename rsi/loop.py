@@ -20,7 +20,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import budget
+from . import budget, method
 from . import harness as hz
 from .backend import delivery_problems
 from .memory import Memory
@@ -86,6 +86,7 @@ class Loop:
         return out
 
     def collect(self, task: Task, t: int, run_dir, check_delivery=True, rep: int = 1) -> dict:
+        method_digest = method.check(self.state)
         files = self.harness(t)
         run = load_run(run_dir)
         if not run.nodes:
@@ -96,7 +97,7 @@ class Loop:
         reward = verify_all(run, task)
         rec = {"round": t, "replicate": rep, "task": task.name, "role": task.role, "harness": f"H{t}",
                "harness_digest": hz.digest(files), "run_dir": str(run.path), "n_nodes": len(run.nodes),
-               "run_cost_usd": budget.run_cost(run.path), "change": self._change_note(t), **reward, "at": _now()}
+               "run_cost_usd": budget.run_cost(run.path), "method": method_digest, "change": self._change_note(t), **reward, "at": _now()}
         _dump(self.round_dir(task, t, rep) / "reward.json", rec)
         if task.role == "train" and rep == 1:
             self.memory.append(rec)
@@ -110,6 +111,8 @@ class Loop:
             raise LoopError(f"round {t} of {task.name} is not in memory yet (collect it first)")
         if self.harness_dir(t + 1).exists():
             raise LoopError(f"H{t + 1} already exists")
+        llm = getattr(improver, "llm", None)
+        method_digest = method.check(self.state, getattr(llm, "model", None) if llm and llm.model != "scripted" else None)
         files = self.harness(t)
         task_md = (task.path / "instruction.md").read_text()
         res = improver.improve(files, memory, task_md, task.aide["mode"])
@@ -123,8 +126,7 @@ class Loop:
             [l for f in hz.FILES for l in (f"### {f}\n", *files[f].splitlines(True), "\n")],
             [l for f in hz.FILES for l in (f"### {f}\n", *new[f].splitlines(True), "\n")],
             f"H{t}", f"H{t + 1}"))
-        llm = getattr(improver, "llm", None)
-        out = {"round": t, "from": f"H{t}", "to": f"H{t + 1}", "outcome": res["outcome"],
+        out = {"round": t, "method": method_digest, "from": f"H{t}", "to": f"H{t + 1}", "outcome": res["outcome"],
                "summary": res.get("summary"), "reason": res.get("reason"), "diff": diff,
                "model": getattr(llm, "model", None), "calls": getattr(llm, "calls", None),
                "cost_usd": getattr(llm, "cost_usd", None), "transcript": res.get("transcript"), "at": _now()}

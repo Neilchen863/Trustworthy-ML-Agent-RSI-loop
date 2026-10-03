@@ -22,6 +22,8 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tasks", help="list tasks")
     sub.add_parser("init", help="create H0 in the state directory")
+    s = sub.add_parser("freeze", help="freeze verifiers, improver prompt and improver model for this state")
+    s.add_argument("--model", required=True)
     s = sub.add_parser("budget", help="show spending; --cap sets the total cap in USD")
     s.add_argument("--cap", type=float)
     s.add_argument("--extra", type=float, help="record spending not visible in rounds/ (USD)")
@@ -49,7 +51,7 @@ def main(argv=None):
     s = sub.add_parser("improve", help="LLM edits H<round> into H<round+1>")
     s.add_argument("--task", required=True)
     s.add_argument("--round", type=int, required=True)
-    s.add_argument("--model", default="gpt-4o-2024-08-06")
+    s.add_argument("--model", help="default: the frozen improver model")
     s.add_argument("--max-cost", type=float, default=0.5)
 
     a = p.parse_args(argv)
@@ -60,6 +62,9 @@ def main(argv=None):
             print(f"{name:24s} {t.role:5s} {t.competition_id}")
     elif a.cmd == "init":
         print(loop.init())
+    elif a.cmd == "freeze":
+        from .method import freeze
+        _print(freeze(Path(a.state), a.model))
     elif a.cmd == "budget":
         from .budget import add_extra, ledger, set_cap
         if a.cap is not None:
@@ -81,8 +86,12 @@ def main(argv=None):
         from .improver import Improver
         from .llm import OpenAIChat
         from .budget import improver_allowance
+        from .method import frozen
+        model = a.model or (frozen(Path(a.state)) or {}).get("improver_model")
+        if not model:
+            raise SystemExit("no --model and the state is not frozen (rsi freeze --model ...)")
         cap = improver_allowance(Path(a.state), a.max_cost)
-        out = loop.improve(load_task(a.task), a.round, Improver(OpenAIChat(a.model, max_cost_usd=cap)))
+        out = loop.improve(load_task(a.task), a.round, Improver(OpenAIChat(model, max_cost_usd=cap)))
         _print({k: out[k] for k in ("from", "to", "outcome", "summary", "reason", "cost_usd")})
         print(out["diff"] or "(no diff)")
     return 0

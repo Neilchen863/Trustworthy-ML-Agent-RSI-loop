@@ -154,7 +154,7 @@ def metric_mismatch(node: Node, task: Task) -> str | None:
 
 
 def flagged(node: Node, task: Task) -> list:
-    """Reasons this node's validation score should not be trusted."""
+    """Verifier flags on this node's validation score (empty = unflagged, which is not proof it is sound)."""
     out = []
     if train_only_uses(node, task):
         out.append("train_only_field")

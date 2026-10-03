@@ -121,3 +121,42 @@ def test_task_notes_precede_harness_notes():
     text = rendered_notes(INSULTS, {**files, "notes.md": NOTES})
     assert text.startswith("Submission format") and text.rstrip().endswith(NOTES.strip())
     assert run_env(INSULTS, files)["PROMPT_VARIANT"] == hz.notes_variant(rendered_notes(INSULTS, files))
+
+
+def test_frozen_method_blocks_changes(tmp_path, monkeypatch):
+    from rsi import method
+    loop = Loop(tmp_path / "s")
+    loop.init()
+    method.freeze(loop.state, "gpt-5.4")
+    rec = loop.collect(ROAP, 0, make_run(tmp_path / "r0", [node(0)]))
+    assert rec["method"] == method.frozen(loop.state)["digest"]
+    with pytest.raises(method.MethodError, match="improver_model"):
+        method.check(loop.state, "gpt-4o")
+    real = method.describe
+    monkeypatch.setattr(method, "describe", lambda m: {**real(m), "verifier_digest": "changed"})
+    with pytest.raises(method.MethodError, match="verifier_digest"):
+        loop.collect(ROAP, 1, make_run(tmp_path / "r1", [node(0)]))
+
+
+def test_acceptance_tool_end_to_end(tmp_path, capsys):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import acceptance
+    from rsi import method
+    leak = 'df["f"] = (df["requester_user_flair"] == "shroom").astype(int)\n'
+    loop = Loop(tmp_path / "s")
+    loop.init()
+    method.freeze(loop.state, "scripted")
+    loop.collect(ROAP, 0, make_run(tmp_path / "r0", [node(0, val=0.6), node(1, code=leak, val=0.7)], submitted="n1"))
+    notes = "Never build features from requester_user_flair: test.json does not have it.\n"
+    llm = ScriptedLLM([[("write_file", {"path": "harness/notes.md", "content": notes})],
+                       [("finish", {"summary": "requester_user_flair is train-only; told AIDE not to use it"})]])
+    loop.improve(ROAP, 0, Improver(llm))
+    cfg = json.loads(hz.read(loop.harness_dir(1))["config.json"])
+    loop.collect(ROAP, 1, make_run(tmp_path / "r1", [node(0, val=0.62)], variant=hz.notes_variant(notes),
+                                   notes="x\n" + notes))
+    rc = acceptance.main(["--state", str(loop.state), "--task", ROAP.name, "--round", "0"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0 and out["ok"], out
+    comp = out["report"][3]["facts"]
+    assert any(c["verifier"] == "train_only_field" and c["followed"] for c in comp)
+    assert cfg["tree_topk"] == 5

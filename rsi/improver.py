@@ -23,7 +23,7 @@ The harness has two files:
   The other keys in the file are not read in {mode} mode; check() rejects changes to them.
 
 What AIDE can and cannot see: AIDE reads notes.md as plain instructions. It never sees verifier names,
-rewards, flags or words like "trusted"/"implausible" from this loop, so notes that say "avoid flagged
+rewards, flags or words like "unflagged"/"implausible" from this loop, so notes that say "avoid flagged
 nodes" give it nothing to act on. Notes must describe concrete practices AIDE can follow while writing,
 debugging, reviewing or choosing code (for example how validation must be computed, which data a step may
 be fitted on, what to check before trusting a score).

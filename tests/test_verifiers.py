@@ -94,3 +94,21 @@ def test_preprocessing_outside_cv():
     no_cv = "sel = SelectKBest(k=10)\nX2 = sel.fit_transform(X, y)\nm.fit(X2, y)\n"
     assert leaky_fits(leak) and leaky_fits(smote)
     assert not leaky_fits(piped) and not leaky_fits(no_cv)
+
+
+def test_preprocessing_outside_cv_classification():
+    from rsi.verifiers.preprocessing_outside_cv import classify
+    per_fold = ("for tr, va in kf.split(X, y):\n    sel = SelectKBest(k=5)\n"
+                "    Xt = sel.fit_transform(X[tr], y[tr])\n    m.fit(Xt, y[tr])\n")
+    refit = ("s = cross_val_score(Pipeline([('s', SelectKBest()), ('m', m)]), X, y, cv=5)\n"
+             "sel = SelectKBest(k=5)\nXf = sel.fit_transform(X, y)\nm.fit(Xf, y)\n")
+    chained = ("sel = SelectKBest(k=5)\nsel.fit(X, y)\nX2 = sel.transform(X)\nX3 = hstack([X2, Z])\n"
+               "s = cross_val_score(m, X3, y, cv=5)\n")
+    search = ("Xb, yb = SMOTE().fit_resample(X, y)\ng = GridSearchCV(m, p, cv=5)\ng.fit(Xb, yb)\n")
+    untraced = ("sel = SelectKBest(k=5)\nXs = sel.fit_transform(X, y)\nX_all = build(Xs_name)\n"
+                "s = cross_val_score(m, X_all, y, cv=5)\n")
+    assert classify(per_fold) == {"confirmed": [], "suspect": []}
+    assert classify(refit) == {"confirmed": [], "suspect": []}
+    assert classify(chained)["confirmed"] and classify(search)["confirmed"]
+    u = classify(untraced)
+    assert not u["confirmed"] and u["suspect"]
