@@ -31,10 +31,27 @@ string; failure (timeout, crash, invalid output) = nothing appended, recorded. N
 added and the node stays failed. Every load and call is a line in `<run>/logs/harness_events.jsonl` with
 SHA-256s of the loaded files and the adapter. H0's hook returns `None` (stock behaviour).
 
-Isolation of the hook process: `python -I -S -B`, empty environment (no API key), fresh temporary working dir,
-CPU and memory limits, `RLIMIT_FSIZE=0` (no bytes can be written to any file), wall-clock timeout; the source is
-read and hash-checked once at load and executed from a private copy. It can still read files the AIDE process can
-read and create empty files; the static rules forbid `open`, `os` and introspection for that reason.
+Isolation of the hook process (`harness_adapter._RUNNER`): `python -I -S -B`, empty environment, empty read-only
+working directory, CPU / memory / process limits, `RLIMIT_FSIZE=0`, wall-clock timeout. Source and event arrive on
+stdin (the hook never gets a path); only the five event fields are passed. Before the hook runs, every function is
+removed from `os`/`posix` and a PEP 578 audit hook is installed that refuses any file open (read or write), os
+calls, subprocess, socket, ctypes, new imports and exec of other code. So the hook cannot read credentials, grader
+files, test labels or state, and cannot create, modify, replace or delete any file (checked offline by
+`tests/test_sandbox.py`, and inside the AIDE container with its Python 3.11). Code generation in the stdlib is
+unavailable too (e.g. `collections.namedtuple`).
+
+Published versions: files 0444, directories (including the version directory) 0555, and every publish is recorded
+in `harness/versions.jsonl` (digest, file SHA-256s, manifest SHA-256). `Loop.harness(t)` refuses a version that
+differs from its manifest or from the ledger, so a directory replaced from outside with a self-consistent manifest
+is caught too.
+
+Instructions that rely on state AIDE cannot see are rejected (`harness.INVISIBLE_STATE`: flagged/unflagged,
+verifier, reward, trusted, official/test scores, verifier names, evidence/job ids, loop internals), in notes.md, in
+the hook's message literals, and in the messages the hook actually returns during the candidate checks.
+
+What each config key really does is in `harness.CONFIG_EFFECTS` and shown to the improver; e.g.
+`submission_profile` only appends a neutral numeric profile of submission.csv to each node's output; it does not
+select, filter or rank nodes.
 
 ## Layout
 

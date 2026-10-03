@@ -95,6 +95,11 @@ A-E passed). Cumulative actual spending: $17.71 + $1.74 = **$19.45** (cap $32.71
 
 ## Known defects and limits (not fixed in this state: fixing them changes the frozen method)
 
+Follow-up (same day, offline only): the first three items below are addressed in a new method version, see
+[harness_boundaries_20261003.md](harness_boundaries_20261003.md). `.state-harness` keeps its frozen method
+`f7c61660bdaf`; the next real run needs a new state and a rebuilt overlay (the adapter changed).
+
+
 - `harness.publish` leaves the version's top directory at mode 0700 (only files and `hooks/` are read-only). An
   added file would be caught by `tree_problems` and the manifest check, but the directory itself is not
   read-only. Fix in the next method version.

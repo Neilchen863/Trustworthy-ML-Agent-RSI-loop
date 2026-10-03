@@ -38,6 +38,68 @@ HOOK_IMPORTS = {"re", "json", "math", "textwrap", "collections", "itertools", "f
 HOOK_FORBIDDEN_NAMES = {"open", "exec", "eval", "compile", "__import__", "globals", "locals", "vars", "getattr",
                         "setattr", "delattr", "breakpoint", "input", "memoryview", "help", "exit", "quit"}
 
+# What each key actually does in the research repo's patched AIDE (scripts/_inject_agent_decision.py,
+# scripts/_inject_submission_stats.py on CRC).  Shown to the improver verbatim.
+CONFIG_EFFECTS = {
+    "tree_topk": "agent mode, decision prompts only: how many of the best-scoring nodes (by AIDE's own validation "
+                 "metric) are shown with full detail; other selectable nodes stay visible as one-line summaries. "
+                 "It does not change which nodes exist or which one AIDE may pick.",
+    "tree_recent": "agent mode, decision prompts only: how many of the most recent nodes are shown with full detail.",
+    "max_stagnation": "rule mode: steps without improvement before the rule policy stops drafting/improving.",
+    "debug_prob": "rule mode: probability of debugging a buggy leaf instead of drafting/improving.",
+    "max_debug_depth": "rule mode: maximum consecutive debug attempts along one branch.",
+    "num_drafts": "rule mode: number of initial drafts.",
+    "submission_profile": "AIDE_SUB_STATS: after each node executes, a neutral numeric profile of "
+                          "./submission/submission.csv (rows, per column n_unique/min/max/mean/std/NaN, or 'no "
+                          "submission produced') is appended to that node's execution output. No warning text. It does "
+                          "not select, filter or rank nodes and does not change the submission.",
+}
+
+# Instructions that rely on state AIDE cannot see: the loop's labels, verifier names, rewards, evidence ids, hidden
+# scores.  AIDE reads notes and hook messages as plain text and has none of these.
+INVISIBLE_STATE = [
+    (r"\b(un)?flagged\b", "flags are computed by the loop's verifiers; AIDE never sees them"),
+    (r"\bverifiers?\b", "AIDE never sees verifiers"),
+    (r"\brewards?\b", "AIDE never sees the reward vector"),
+    (r"\btrusted\b", "trust labels are loop state"),
+    (r"\b(official|leaderboard|private|public)[ _-]?(test[ _-]?)?(score|auc|metric|result)s?\b",
+     "AIDE never sees official/test scores"),
+    (r"\btest[ _-]?(labels?|scores?|auc)\b", "AIDE never sees test labels or test scores"),
+    (r"\b(official_score|submission_sanity|train_only_field|implausible_validation|preprocessing_outside_cv|"
+     r"metric_mismatch|search_health)\b", "verifier name"),
+    (r"\bevidence[ _-]?ids?\b|\bj\d{6,}\b|\bstep\d{2}:(error|hook|propagation)", "evidence ids / job ids are loop state"),
+    (r"\bmemory\.jsonl\b|\bharness\b|\bimprover\b", "loop internals"),
+]
+
+
+def _hook_strings(src: str) -> list:
+    """String literals in the hook except docstrings: the text it can return to AIDE."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return []
+    docs = {id(n.body[0].value) for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n.body
+            and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+    return [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and id(n) not in docs]
+
+
+def invisible_state_problems(files: dict) -> list:
+    """notes.md and the hook's string literals (its possible messages) must not depend on state AIDE cannot see."""
+    import re
+    problems = []
+    texts = [("notes.md", files.get("notes.md", ""))]
+    texts += [(HOOK + " message text", t) for t in _hook_strings(files.get(HOOK, ""))]
+    for where, text in texts:
+        for pat, why in INVISIBLE_STATE:
+            m = re.search(pat, text, re.I)
+            if m:
+                problems.append(f"{where}: {m.group(0)!r} relies on state AIDE cannot see ({why}); describe a "
+                                f"concrete practice AIDE can check in its own code and output instead")
+    return problems
+
+
 # key -> (type, min, max, which mode reads it)
 CONFIG_SCHEMA = {
     "tree_topk": (int, 1, 20, "agent"),
@@ -100,6 +162,7 @@ def validate(files: dict, mode: str | None = None, base: dict | None = None) -> 
         problems.append(f"notes.md has {len(notes)} chars; limit {MAX_NOTES_CHARS}")
     if HOOK in files:
         problems += hook_problems(files[HOOK])
+    problems += invisible_state_problems(files)
     try:
         cfg = json.loads(files.get("config.json", "{}"))
     except json.JSONDecodeError as exc:
@@ -203,6 +266,8 @@ def publish(path: Path, files: dict, man: dict) -> Path:
         for p in sorted(tmp.rglob("*"), reverse=True):
             p.chmod(0o555 if p.is_dir() else 0o444)
         os.rename(tmp, path)
+        path.chmod(0o555)                  # the version directory itself is read-only too (after the rename:
+                                           # renaming a read-only directory is refused on some systems)
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)
         raise

@@ -20,6 +20,7 @@ State layout (any directory):
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,8 +68,26 @@ class Loop:
         """Replicates (rep > 1) re-run harness H<t> for evaluation only; they never write memory."""
         return self.state / "rounds" / task.name / (f"round_{t:02d}" + (f"_r{rep}" if rep > 1 else ""))
 
+    @property
+    def ledger_path(self) -> Path:
+        return self.state / "harness" / "versions.jsonl"
+
+    def ledger(self) -> dict:
+        """H<t> -> record written at publish time (digest, file SHA-256s, manifest SHA-256)."""
+        if not self.ledger_path.is_file():
+            return {}
+        return {r["version"]: r for r in map(json.loads, self.ledger_path.read_text().splitlines()) if r}
+
+    def _publish(self, t: int, files: dict, man: dict) -> None:
+        d = hz.publish(self.harness_dir(t), files, man)
+        rec = {"version": f"H{t}", "digest": man["digest"], "files": man["files"],
+               "manifest_sha256": hashlib.sha256((d / hz.MANIFEST).read_bytes()).hexdigest(), "at": _now()}
+        with self.ledger_path.open("a") as fh:
+            fh.write(json.dumps(rec, sort_keys=True) + "\n")
+
     def harness(self, t: int) -> dict:
-        """Files of H<t>, checked against its manifest (a published version must not have changed)."""
+        """Files of H<t>, checked against its manifest and against the publish ledger: a published version must not
+        have been modified, and a replaced directory (even with a self-consistent manifest) is detected."""
         d = self.harness_dir(t)
         if not d.is_dir():
             raise LoopError(f"{d} does not exist (run init, or improve round {t - 1} first)")
@@ -78,6 +97,10 @@ class Loop:
         problems = hz.tree_problems(d)
         if hz.digest(files) != man["digest"] or hz.file_sha256(files) != man["files"] or problems:
             raise LoopError(f"{d} differs from its manifest {problems or ''}")
+        rec = self.ledger().get(f"H{t}")
+        if rec is None or rec["digest"] != man["digest"] or rec["files"] != man["files"] or \
+                rec["manifest_sha256"] != hashlib.sha256((d / hz.MANIFEST).read_bytes()).hexdigest():
+            raise LoopError(f"{d} does not match the publish ledger {self.ledger_path} (replaced or not published)")
         return files
 
     def _base_record(self) -> dict:
@@ -93,7 +116,7 @@ class Loop:
             if problems:
                 raise LoopError(f"repo harness/H0 is invalid: {problems}")
             fz = method.frozen(self.state)
-            hz.publish(d, files, hz.manifest(files, None, fz and fz["digest"], self._base_record()))
+            self._publish(0, files, hz.manifest(files, None, fz and fz["digest"], self._base_record()))
         return d
 
     def submit(self, task: Task, t: int, backend, dry_run=False, rep: int = 1) -> dict:
@@ -203,7 +226,7 @@ class Loop:
             _dump(cdir / "validation.json", {"improver_checks": res.get("checks"), "controller_check": final,
                                              "outcome": outcome})
             (cdir / "diff.patch").write_text(diff_text(files, cand_files, f"H{t}", f"candidate {cid}"))
-        hz.publish(self.harness_dir(t + 1), new, man)
+        self._publish(t + 1, new, man)
         out = {"round": t, "method": method_digest, "from": f"H{t}", "to": f"H{t + 1}", "outcome": outcome,
                "published": published, "candidate": cid if cdir.exists() else None, "proposal": proposal,
                "summary": res.get("summary"), "reason": res.get("reason"),

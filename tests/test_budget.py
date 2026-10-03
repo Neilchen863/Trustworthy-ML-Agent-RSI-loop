@@ -37,7 +37,7 @@ def test_cap_reserve_and_actual_cost(tmp_path):
     imp.write_text(json.dumps({"cost_usd": 0.6}))
     assert budget.improver_allowance(loop.state, 0.5) == 0.5
     from rsi import harness as hz
-    hz.publish(loop.harness_dir(1), loop.harness(0), hz.read_manifest(loop.harness_dir(0)))
+    loop._publish(1, loop.harness(0), hz.read_manifest(loop.harness_dir(0)))
     with pytest.raises(budget.BudgetError, match="cap"):                          # 2.03 + 3.0 > 5
         loop.submit(ROAP, 1, FakeBackend())
 

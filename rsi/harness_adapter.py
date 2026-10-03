@@ -14,10 +14,12 @@ Entry point (interface on_exec_error/1)
             "[harness note] <string>" (at most MAX_MESSAGE chars) to the node's execution output, which
             AIDE's reviewer and its debug prompt for the child node read.  Nothing else changes: the node
             stays buggy, no step, time or token budget is added, the exception is not hidden.
-  isolation the hook runs in a separate `python -I -S -B` process: empty environment (no API key), a fresh
-            temporary working directory, CPU / memory limits, no bytes can be written to files (RLIMIT_FSIZE = 0;
-            creating an empty file or reading files the AIDE process can read is not prevented, which is why the
-            static rules in harness.hook_problems forbid open/os/introspection), HOOK_TIMEOUT seconds wall clock.  Source bytes are read and checked against the manifest once at
+  isolation the hook runs in a separate `python -I -S -B` process with an empty environment (no API key), an
+            empty read-only working directory, CPU / memory / process limits, RLIMIT_FSIZE = 0, HOOK_TIMEOUT seconds
+            wall clock, and a PEP 578 audit hook that refuses every file open (read or write), every os.* call,
+            subprocess, socket, ctypes, new imports and exec of other code (see _RUNNER).  The hook's source and
+            event arrive on stdin; its only output is one JSON line on stdout.  It therefore cannot read
+            credentials, grader files, test labels or state, nor create, modify, replace or delete any file.  Source bytes are read and checked against the manifest once at
             load, then executed from a private copy, so later edits to the staged files have no effect.
   failure   timeout, crash, invalid output -> nothing is appended (stock behaviour) and the event says so.
   audit     one JSON line per load and per call in $RSI_HARNESS_LOG (default /home/logs/harness_events.jsonl):
@@ -44,31 +46,76 @@ DEFAULT_DIR = "/home/agent/rsi_harness"
 DEFAULT_LOG = "/home/logs/harness_events.jsonl"
 NOTE_PREFIX = "[harness note] "
 
-# Runs in the child process: load the hook from a file path and print {"ok", "message"|"error"} as JSON.
+EVENT_KEYS = ("interface", "exc_type", "exc_message", "traceback_tail", "code")   # the hook's only input
+ALLOWED_MODULES = ("re", "json", "math", "textwrap", "collections", "itertools", "functools", "string")
+
+# Runs in the child process.  Order matters: everything that needs files or new imports happens before the audit
+# hook is installed; after that, the only code that runs is the hook's, under the audit hook, until os._exit.
+#   1 limits: CPU, memory, file size 0 (no bytes reach any file), no new processes
+#   2 read {"source", "event"} from stdin (the hook never gets a path), pre-import the allowed modules, compile
+#   3 install an audit hook (PEP 578; it cannot be removed from Python) that refuses: opening any file (read or
+#     write, any path), every os.* operation (create/remove/rename/chmod/link/listdir/exec/spawn/kill/env),
+#     subprocess, socket, ctypes, imports of anything not already loaded, compile/exec/eval of other code, gc/frame
+#     introspection, pickle/marshal loading
+#   3b remove every function from os and posix (some os calls, e.g. mkfifo, raise no audit event)
+#   4 exec the hook's code object (the one exec the audit hook allows), call diagnose(event), write one JSON line
+#     to stdout (no audit event), os._exit(0) (no interpreter shutdown under the audit hook)
 _RUNNER = r"""
-import importlib.util, json, sys
+import sys
 try:
     import resource
-    resource.setrlimit(resource.RLIMIT_CPU, (5, 5))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
-    try:
-        resource.setrlimit(resource.RLIMIT_AS, (512 * 2**20, 512 * 2**20))
-    except (ValueError, OSError):
-        pass
+    for _lim, _val in (("RLIMIT_CPU", 5), ("RLIMIT_FSIZE", 0), ("RLIMIT_NPROC", 0), ("RLIMIT_AS", 512 * 2**20)):
+        try:
+            resource.setrlimit(getattr(resource, _lim), (_val, _val))
+        except (ValueError, OSError, AttributeError):
+            pass
 except ImportError:
     pass
-event = json.loads(sys.stdin.read())
+import json, os
+_req = json.loads(sys.stdin.read())
+for _m in %(modules)r:
+    __import__(_m)
+_out, _exit, _dumps = sys.stdout, os._exit, json.dumps
+def _emit(obj):
+    _out.write(_dumps(obj)); _out.flush(); _exit(0)
 try:
-    spec = importlib.util.spec_from_file_location("rsi_hook", sys.argv[1])
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    out = mod.diagnose(event)
-    if out is not None and not isinstance(out, str):
-        raise TypeError("diagnose must return None or str, not " + type(out).__name__)
-    sys.stdout.write(json.dumps({"ok": True, "message": out}))
+    _code = compile(_req["source"], "on_exec_error.py", "exec")
 except BaseException as exc:
-    sys.stdout.write(json.dumps({"ok": False, "error": type(exc).__name__ + ": " + str(exc)[:300]}))
-"""
+    _emit({"ok": False, "error": type(exc).__name__ + ": " + str(exc)[:300]})
+_DENY = {"open", "import", "compile", "builtins.input", "builtins.breakpoint", "sys._getframe", "sys._current_frames",
+         "sys.settrace", "sys.setprofile", "code.__new__", "function.__new__", "marshal.loads", "marshal.load",
+         "pickle.find_class", "object.__setattr__", "object.__delattr__"}
+_DENY_PREFIX = {"os", "subprocess", "socket", "ctypes", "shutil", "glob", "tempfile", "sqlite3", "urllib", "http",
+                "ftplib", "smtplib", "poplib", "imaplib", "nntplib", "telnetlib", "webbrowser", "fcntl", "mmap",
+                "resource", "gc", "pty", "signal", "_posixsubprocess", "cpython", "syslog", "msvcrt", "winreg"}
+def _audit(event, args, _code=_code):
+    if event == "exec":
+        if args and args[0] is _code:
+            return
+        raise PermissionError("sandbox: exec of other code")
+    if event in _DENY or event.split(".")[0] in _DENY_PREFIX:
+        raise PermissionError("sandbox: " + event)
+# Some os/posix calls raise no audit event (e.g. mkfifo, mknod): remove every callable from both modules, so the
+# hook has no os-level function at all (the modules above never call os at run time).
+import posix
+for _mod in (os, posix):
+    for _name in list(vars(_mod)):
+        if callable(getattr(_mod, _name, None)) and not _name.startswith("__") and not isinstance(getattr(_mod, _name), type):
+            try:
+                delattr(_mod, _name)
+            except (AttributeError, TypeError):
+                pass
+sys.addaudithook(_audit)
+try:
+    _ns = {"__name__": "rsi_hook"}
+    exec(_code, _ns)
+    _res = _ns["diagnose"](_req["event"])
+    if _res is not None and not isinstance(_res, str):
+        raise TypeError("diagnose must return None or str, not " + type(_res).__name__)
+    _emit({"ok": True, "message": _res})
+except BaseException as exc:
+    _emit({"ok": False, "error": type(exc).__name__ + ": " + str(exc)[:300]})
+""" % {"modules": ALLOWED_MODULES}
 
 
 def sha256(data: bytes) -> str:
@@ -96,20 +143,23 @@ def make_event(exc_type, exc_info, term_out, code) -> dict:
 
 
 def run_hook(source: bytes, event: dict, timeout: float = HOOK_TIMEOUT) -> dict:
-    """Execute diagnose(event) from `source` in an isolated child process.
+    """Execute diagnose(event) from `source` in the sandboxed child process (see _RUNNER).
 
-    Returns {"status": ok|timeout|error|invalid, "message": str|None, "detail", "duration_s"}."""
+    Only the EVENT_KEYS fields of `event` are passed.  Returns {"status": ok|timeout|error|invalid,
+    "message": str|None, "detail", "duration_s"}."""
     t0 = time.time()
+    payload = json.dumps({"source": source.decode("utf-8", "replace"),
+                          "event": {k: str(event.get(k, "")) for k in EVENT_KEYS}})
     with tempfile.TemporaryDirectory(prefix="rsi_hook_") as tmp:
-        path = os.path.join(tmp, "hook.py")
-        with open(path, "wb") as fh:
-            fh.write(source)
+        os.chmod(tmp, 0o500)                                    # empty, read-only working directory
         try:
-            proc = subprocess.run([sys.executable, "-I", "-S", "-B", "-c", _RUNNER, path], input=json.dumps(event),
+            proc = subprocess.run([sys.executable, "-I", "-S", "-B", "-c", _RUNNER], input=payload,
                                   capture_output=True, text=True, timeout=timeout, cwd=tmp,
                                   env={"PATH": "/usr/bin:/bin", "PYTHONHASHSEED": "0"})
         except subprocess.TimeoutExpired:
             return {"status": "timeout", "message": None, "detail": f"> {timeout}s", "duration_s": time.time() - t0}
+        finally:
+            os.chmod(tmp, 0o700)
     dur = round(time.time() - t0, 3)
     try:
         out = json.loads(proc.stdout or "")

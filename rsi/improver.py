@@ -24,7 +24,8 @@ on a problem the evidence shows clearly.
 The harness has three files. Change one, several or none; edit what the evidence points to.
 - harness/notes.md: text added to every prompt AIDE's LLMs see (code writing, debugging, reviewing, choosing
   the node to submit). Up to {max_notes} characters. Empty = stock AIDE.
-- harness/config.json: search settings. This task runs in {mode} mode, so only these keys matter (type [min, max]):
+- harness/config.json: search settings. This task runs in {mode} mode, so only these keys matter
+  (type [min, max]: what it actually does):
 {schema}
   The other keys are not read in {mode} mode; check rejects changes to them.
 - harness/hooks/on_exec_error.py: `def diagnose(event)` called by a fixed adapter right after a node's code
@@ -33,12 +34,14 @@ The harness has three files. Change one, several or none; edit what the evidence
   characters; the adapter appends it to that node's execution output as "[harness note] <string>". AIDE's
   reviewer reads that output, and the debug step that tries to fix the node gets it in its prompt. The node
   still counts as failed and no budget is added. Rules: only these imports: {imports}; no file, network,
-  exec/eval or introspection; runs in an isolated process with a {timeout}s limit and must be deterministic.
+  exec/eval or introspection; runs in a sandboxed process (no file access at all, no code generation, so e.g.
+  collections.namedtuple is unavailable) with a {timeout}s limit and must be deterministic.
   The current version may simply `return None` (stock behaviour).
 
 What AIDE can and cannot see: AIDE never sees verifier names, rewards, flags, evidence ids or words from this
 loop. Notes and hook messages must state concrete facts and practices AIDE can act on while writing or fixing
-code. Do not write test labels, official scores or score thresholds ("a normal AUC is ...") into the harness.
+code. check rejects text that relies on state AIDE cannot see, e.g. "prefer an unflagged node", "the verifier",
+"official score", evidence ids. Do not write test labels, official scores or score thresholds ("a normal AUC is ...") into the harness.
 
 Evidence: memory lists evidence ids (e.g. "j123:step07:error", "j123:verifier:selection:1") with one-line
 observations. read_evidence(id) returns the excerpt (traceback, code, adapter event). "suspected" propagation
@@ -146,8 +149,8 @@ class Improver:
         store = {e["evidence_id"]: e for e in evidence}
         context = {"context/memory.jsonl": "\n".join(json.dumps(r, ensure_ascii=False) for r in memory),
                    "context/task.md": task_md}
-        schema = "\n".join(f"  {k}: {hz.CONFIG_SCHEMA[k][0].__name__} [{hz.CONFIG_SCHEMA[k][1]}, {hz.CONFIG_SCHEMA[k][2]}]"
-                           for k in hz.active_keys(mode))
+        schema = "\n".join(f"  {k}: {hz.CONFIG_SCHEMA[k][0].__name__} [{hz.CONFIG_SCHEMA[k][1]}, "
+                           f"{hz.CONFIG_SCHEMA[k][2]}]: {hz.CONFIG_EFFECTS[k]}" for k in hz.active_keys(mode))
         system = SYSTEM.format(max_notes=hz.MAX_NOTES_CHARS, schema=schema, mode=mode, max_checks=MAX_CHECKS,
                                imports=", ".join(sorted(hz.HOOK_IMPORTS)), timeout=int(ha.HOOK_TIMEOUT))
         messages = [

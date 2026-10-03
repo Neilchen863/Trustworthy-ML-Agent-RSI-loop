@@ -58,13 +58,13 @@ def test_run_hook_isolation(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-should-not-leak")
     env_probe = b"import os\ndef diagnose(e):\n    return repr(sorted(os.environ))\n"   # bypasses static rules
     r = ha.run_hook(env_probe, EV)
-    assert r["status"] == "ok" and "OPENAI_API_KEY" not in r["message"]
+    assert "OPENAI_API_KEY" not in json.dumps(r) and "sk-should-not-leak" not in json.dumps(r)
     target = tmp_path / "written.txt"
     writer = f"def diagnose(e):\n    open({str(target)!r}, 'w').write('x' * 10)\n    return 'wrote'\n".encode()
     ha.run_hook(writer, EV)
     assert not (target.exists() and target.read_text())          # RLIMIT_FSIZE=0: no bytes reach any file
     cwd = b"import os\ndef diagnose(e):\n    return os.getcwd()\n"
-    assert "rsi_hook_" in ha.run_hook(cwd, EV)["message"]
+    assert ha.run_hook(cwd, EV)["status"] == "error"                       # no os functions at all
 
 
 @pytest.mark.parametrize("src,status", [

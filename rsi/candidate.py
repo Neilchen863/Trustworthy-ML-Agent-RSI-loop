@@ -3,12 +3,16 @@
 Checks run in this order and all must pass:
 
   1 boundary      whitelisted paths only, no symlinks / escapes (on disk), valid config, unchanged inactive keys,
-                  notes length, hook static rules (stdlib allowlist, no file/exec/introspection, `diagnose(event)`)
+                  notes length, hook static rules (stdlib allowlist, no file/exec/introspection, `diagnose(event)`),
+                  no instruction that relies on state AIDE cannot see (harness.INVISIBLE_STATE) in notes or in the
+                  hook's message literals
   2 interface     the hook imports and runs in the isolated child process (harness_adapter.run_hook) on a probe
                   event and returns None or a string within the length limit
   3 regression    fixed synthetic error events (FIXED_EVENTS) all run without timeout/crash/invalid output, twice,
-                  with identical output (deterministic); if the hook changed, it must answer (non-empty message)
-                  at least one execution_error event the proposal cites, replayed from evidence.json
+                  with identical output (deterministic); no actual output may rely on state AIDE cannot see (same
+                  rules as notes, applied to the messages it really returns, so text built at run time is covered);
+                  if the hook changed, it must answer (non-empty message) at least one execution_error event the
+                  proposal cites, replayed from evidence.json
   4 smoke         the candidate is staged with a manifest and loaded by harness_adapter.apply() on a stand-in Agent
                   class; one error is pushed through the wrapped parse_exec_result: the load event must match the
                   manifest, the call event must carry the hook's SHA-256, a non-empty message must be appended to
@@ -87,8 +91,12 @@ def check_candidate(files: dict, base: dict, mode: str, evidence=(), cited_ids=(
             if r["status"] != "ok":
                 bad.append({"evidence_id": eid, **r})
         answered = [r for r in replay if r["message"]]
+        outputs = [ha.run_hook(src, ev)["message"] for ev in FIXED_EVENTS] + [r["message"] for r in replay]
+        vocab = sorted({p for m in outputs if m for p in hz.invisible_state_problems({"notes.md": m})})
         problems = ([f"fixed/replayed events failed: {bad}"] if bad else []) + \
                    ([f"non-deterministic output on fixed events {nondet}"] if nondet else [])
+        if vocab:
+            problems.append(f"hook output relies on state AIDE cannot see: {vocab}")
         if hook_changed and not answered:
             problems.append("the hook changed but returns no message for any cited execution_error evidence "
                             f"(cited with replayable events: {[r['evidence_id'] for r in replay] or 'none'})")
