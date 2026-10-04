@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "aide-crc-v4",
+  "backend": "sge-apptainer",
+  "external_runner": {
+    "root_env": "MLEBENCH_AIDE_ROOT",
+    "required_files": [
+      "sge/submit.sh",
+      "scripts/run_aide.sh",
+      "scripts/_common.sh",
+      "scripts/02_prepare_data.sh",
+      "scripts/grade.sh"
+    ],
+    "revision": null,
+    "revision_note": "External research checkout; exact deployed revision must be recorded by the operator."
+  },
+  "image": {
+    "path_env": "SIF_PATH",
+    "sha256": null,
+    "note": "External image, not bundled or pinned here; use the deployed image and record its hash."
+  },
+  "overlay": {
+    "path_env": "RSI_OVERLAY_PATH",
+    "build_script": "build_overlay.sh",
+    "base_env": "SRC_OVERLAY",
+    "destination_env": "DST_OVERLAY",
+    "sha256": null,
+    "note": "Build with the current adapter; rsi freeze hashes the chosen overlay. Historical hashes are not current pins."
+  },
+  "container_envs": {
+    "agent": "AIDE and ML dependencies",
+    "mleb": "MLE-bench preparation and grading"
+  },
+  "commands": [
+    "qsub",
+    "apptainer"
+  ],
+  "isolation_note": "Hook Python restrictions are not a general security sandbox."
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "filename": "submission.csv",
+  "columns": [
+    "Insult",
+    "Date",
+    "Comment"
+  ],
+  "prediction_column": "Insult",
+  "prediction_range": [
+    0,
+    1
+  ],
+  "row_alignment": {
+    "key": "Comment",
+    "source": "test.csv",
+    "preserve_source_order": true
+  },
+  "copy_columns": [
+    "Date",
+    "Comment"
+  ],
+  "metric": "roc_auc",
+  "direction": "maximize",
+  "grader": {
+    "runner_script": "scripts/grade.sh",
+    "command": "mlebench grade-sample",
+    "competition_id": "detecting-insults-in-social-commentary"
+  },
+  "contract_scope": "Export contract for this runner; official acceptance is decided by MLE-bench, not this metadata file."
+}

@@ -2,7 +2,15 @@
   "name": "random_acts_of_pizza",
   "competition_id": "random-acts-of-pizza",
   "role": "train",
-  "metric": {"name": "roc_auc", "direction": "maximize", "range": [0.0, 1.0], "implausible_val": 0.9},
+  "metric": {
+    "name": "roc_auc",
+    "direction": "maximize",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "implausible_val": 0.9
+  },
   "aide": {
     "mode": "agent",
     "code_model": "gpt-4o-2024-08-06",
@@ -29,5 +37,7 @@
     "requester_upvotes_plus_downvotes_at_retrieval",
     "requester_user_flair"
   ],
-  "label_column": "requester_received_pizza"
+  "label_column": "requester_received_pizza",
+  "environment": "environment/manifest.json",
+  "evaluation": "evaluation/submission.json"
 }

@@ -10,7 +10,8 @@ Frozen, by explicit dependency list (path + bytes):
                            memory, improver prompt/tools, llm call parameters, backend run protocol and information
                            boundary, budget protocol, run reader, task loader, method itself), rsi/verifiers/*.py
   fixed tests              tests/*.py
-  task protocol            tasks/*/task.json, instruction.md, prepare.sh (AIDE model config, steps, time, data prep)
+  task protocol            task.json, instruction.md, prepare wrappers, environment/evaluation contracts and scripts
+  shared environment       environments/** JSON manifests and executable scripts (external images not bundled)
   starting harness         harness/H0/** (the template; later versions are variables)
   execution base           the overlay file (path, size, SHA-256) when given; recorded so submit can re-check it
   improver model           name (parameters are in llm.py, frozen above)"""
@@ -31,6 +32,12 @@ def dependency_files() -> list:
     files += list((REPO / "tests").glob("*.py"))
     for t in (REPO / "tasks").iterdir():
         files += [t / f for f in ("task.json", "instruction.md", "prepare.sh") if (t / f).is_file()]
+        for subdir in ("environment", "evaluation"):
+            files += [p for p in (t / subdir).rglob("*")
+                      if p.is_file() and p.suffix in (".json", ".py", ".sh") and "__pycache__" not in p.parts]
+    files += [p for p in (REPO / "environments").rglob("*")
+              if p.is_file() and p.suffix in (".json", ".py", ".sh") and "__pycache__" not in p.parts]
+    files += [REPO / "tools" / "build_overlay_v4.sh"]
     files += [p for p in (REPO / "harness" / "H0").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
     return sorted(files)
 
@@ -63,6 +70,7 @@ def describe(model: str, overlay: dict | None = None) -> dict:
         "control_digest": group(lambda r: r.startswith("rsi/") and not r.startswith("rsi/verifiers/")),
         "tests_digest": group(lambda r: r.startswith("tests/")),
         "task_digest": group(lambda r: r.startswith("tasks/")),
+        "environment_digest": group(lambda r: r.startswith("environments/") or r == "tools/build_overlay_v4.sh"),
         "h0_template_digest": group(lambda r: r.startswith("harness/H0/")),
         "all_files_digest": _digest(deps),
         "files": sorted(p.relative_to(REPO).as_posix() for p in deps),

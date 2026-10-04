@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "filename": "submission.csv",
+  "columns": [
+    "request_id",
+    "requester_received_pizza"
+  ],
+  "prediction_column": "requester_received_pizza",
+  "prediction_range": [
+    0,
+    1
+  ],
+  "row_alignment": {
+    "key": "request_id",
+    "source": "test.json",
+    "preserve_source_order": true
+  },
+  "copy_columns": [
+    "request_id"
+  ],
+  "metric": "roc_auc",
+  "direction": "maximize",
+  "grader": {
+    "runner_script": "scripts/grade.sh",
+    "command": "mlebench grade-sample",
+    "competition_id": "random-acts-of-pizza"
+  },
+  "contract_scope": "Export contract for this runner; official acceptance is decided by MLE-bench, not this metadata file."
+}

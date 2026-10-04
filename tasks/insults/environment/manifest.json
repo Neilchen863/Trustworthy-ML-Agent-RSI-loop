@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "shared_environment": "../../../environments/aide/manifest.json",
+  "prepare_script": "prepare.sh",
+  "check_script": "check.py",
+  "data_root_env": "DATA_DIR",
+  "prepared_directory": "detecting-insults-in-social-commentary/prepared",
+  "public_files": [
+    "train.csv",
+    "test.csv"
+  ],
+  "private_directory": "private",
+  "agent_visible_data": "public only; private labels are for the external grader",
+  "task_specific_packages": [],
+  "dependencies_note": "Uses shared image. Empty list means no extra packages declared here, not that arbitrary generated code dependencies are guaranteed."
+}

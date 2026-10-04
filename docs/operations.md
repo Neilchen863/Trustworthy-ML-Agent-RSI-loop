@@ -1,6 +1,7 @@
 # Operation and implementation reference
 
-For the project overview and reading order, see [README](../README.md).
+For the project overview and reading order, see [README](../README.md). Task-specific setup is in
+[the task index](../tasks/README.md); shared prerequisites are in [the AIDE environment](../environments/aide/README.md).
 
 ## What the improver may change (the harness)
 
@@ -45,7 +46,10 @@ select, filter or rank nodes.
 ## Layout
 
 ```
-tasks/<task>/            task.json (competition, role train|test, metric, AIDE budget), instruction.md, prepare.sh
+tasks/<task>/            task.json, instruction.md, README.md
+  environment/           manifest.json, prepare.sh, check.py
+  evaluation/            submission.json, README.md
+environments/aide/       shared manifest, prerequisites and canonical overlay builder
 harness/H0/              starting version: notes.md (empty), config.json, hooks/on_exec_error.py (returns None)
 rsi/                     frozen control and evaluation code
   harness.py             whitelist, static hook rules, digest, manifest, immutable publish, staging
@@ -94,7 +98,7 @@ not a portable one-command reproduction. Paid steps require an appropriate proje
 python -m pytest -q tests
 export MLEBENCH_AIDE_ROOT=~/mlebench-aide
 export DST_OVERLAY=~/rsi-loop-overlays/current/agent.overlay  # must not already exist
-qsub -q long -pe smp 1 -cwd -j y -o overlay_v4.log -S /bin/bash tools/build_overlay_v4.sh
+qsub -q long -pe smp 1 -cwd -j y -o overlay_v4.log -S /bin/bash environments/aide/build_overlay.sh
 # Wait for the build and in-container check to succeed before freezing.
 S=--state=.state-review
 python -m rsi $S freeze --model gpt-5.4 --overlay "$DST_OVERLAY"

@@ -53,6 +53,9 @@ cumulative experimental spending at that point was $19.45.
 4. [Operation and implementation reference](docs/operations.md): configuration, CRC setup and commands.
 
 [Failure audit](docs/harness_entry_audit_20261003.md) explains why the error hook was selected.
+For each task’s inputs, environment and grading, start at the [task index](tasks/README.md) and
+[shared AIDE environment](environments/aide/README.md).
+
 Earlier experiments and planning documents are retained in [the archive](docs/archive/README.md).
 
 ## Repository map
@@ -70,7 +73,13 @@ rsi/             Fixed controller and evaluation code
   backend.py     CRC SGE submission and delivery verification
   method.py      Method freeze; separate from evolving harness versions
   ...            Budget, memory, task loading, run parsing and model client
-tasks/          Fixed ROAP and insults task definitions
+environments/aide/  Shared environment manifest, prerequisites and overlay builder
+tasks/<task>/
+  README.md      Task → environment → execution → evaluation guide
+  task.json      Budget, role, metric and contract references
+  instruction.md Agent-facing description
+  environment/   Manifest, data preparation and read-only preflight
+  evaluation/    Submission contract and external grader reference
 tests/          Offline regression tests
 tools/          Overlay builder and acceptance scripts
 docs/           Results, compact evidence, reference and historical archive
@@ -93,6 +102,16 @@ python -m pytest -q tests
 Two reproduction tests require optional `scikit-learn` / `nltk` and skip when unavailable. Tests do not launch
 paid AIDE runs. Running the live loop additionally requires the external research runner, task data,
 SGE/Apptainer infrastructure and a compatible base overlay; see [operations](docs/operations.md).
+
+You can check task metadata without those external assets:
+
+```bash
+python tasks/random_acts_of_pizza/environment/check.py --metadata-only
+python tasks/insults/environment/check.py --metadata-only
+```
+
+The environment manifests document external dependencies; they do not yet pin every deployed image, dataset
+or external checkout. Protocol changes require a new frozen state; historical results are preserved.
 
 ## Limits
 

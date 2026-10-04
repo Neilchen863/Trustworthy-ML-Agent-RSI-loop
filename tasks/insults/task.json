@@ -23,5 +23,7 @@
   },
   "train_only_fields": [],
   "label_column": "Insult",
-  "task_notes": "Submission format (the grader joins on the Comment text): submission.csv must have exactly the columns Insult, Date, Comment, one row per row of test.csv in the same order, with Date and Comment copied unchanged from test.csv and Insult = predicted probability of an insult. The sample file is sample_submission_null.csv."
+  "task_notes": "Submission format (the grader joins on the Comment text): submission.csv must have exactly the columns Insult, Date, Comment, one row per row of test.csv in the same order, with Date and Comment copied unchanged from test.csv and Insult = predicted probability of an insult. The sample file is sample_submission_null.csv.",
+  "environment": "environment/manifest.json",
+  "evaluation": "evaluation/submission.json"
 }
