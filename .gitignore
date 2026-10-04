@@ -5,3 +5,15 @@ __pycache__/
 .DS_Store
 .state-accept/
 .state-harness/
+
+# Local experiment states, environments, credentials and large runtime assets
+.state*/
+.venv/
+venv/
+.env
+.env.*
+*.pem
+*.key
+*.overlay
+*.sif
+*.log

@@ -1,127 +1,105 @@
 # rsi-loop
 
-```
-fixed task, execution base, verifiers, budget
-                │
-  AIDE run with harness version H_t  ──>  verifiers + search dynamics + adapter receipt
-                                                       │
-                                       memory (summaries + evidence ids)
-                                                       │
-   improver LLM: evidence -> hypothesis -> edit of whitelisted harness files (candidate)
-                                                       │
-   fixed checks: boundary, isolated import, regression/replay, smoke through the real adapter
-        ├─ fail: candidate kept under candidates/, H_{t+1} = copy of H_t
-        └─ pass: immutable H_{t+1} published (manifest)  ──>  next AIDE run loads and executes it
-```
+A minimal feedback loop that improves the **harness around AIDE** from execution evidence. The improver can
+change instructions, active search settings, and an error-feedback hook. It cannot change AIDE itself, task data,
+verifiers, or the loop controller.
 
-## What the improver may change (the harness)
+## The loop
 
-| path | reaches AIDE through | notes |
-|---|---|---|
-| `notes.md` | `PROMPT_VARIANT` notes file → every AIDE prompt | ≤ 8000 chars |
-| `config.json` | env vars (`tree_topk`, `tree_recent` in agent mode; rule-mode keys; `submission_profile`) | keys of the other mode are frozen |
-| `hooks/on_exec_error.py` | the fixed adapter in the dedicated v4 overlay calls `diagnose(event)` after a node's code raised; a returned string is appended to that node's execution output as `[harness note] ...`, which AIDE's reviewer and the debug step for that node read | stdlib allowlist (`re json math textwrap collections itertools functools string`), no file/exec/introspection, ≤ 2000-char output, isolated process, 10 s |
-
-Nothing else: not the verifiers, tasks, data, budget, tests, adapter, candidate checks, collector, memory, the
-improver itself, AIDE or the overlay. `manifest.json` in each version is written by the controller.
-
-The entry point (`rsi/harness_adapter.py`, interface `on_exec_error/1`): input
-`{exc_type, exc_message, traceback_tail, code}` of the failed node (no data, no labels); output `None` or a
-string; failure (timeout, crash, invalid output) = nothing appended, recorded. No step, time or token budget is
-added and the node stays failed. Every load and call is a line in `<run>/logs/harness_events.jsonl` with
-SHA-256s of the loaded files and the adapter. H0's hook returns `None` (stock behaviour).
-
-Isolation of the hook process (`harness_adapter._RUNNER`): `python -I -S -B`, empty environment, empty read-only
-working directory, CPU / memory / process limits, `RLIMIT_FSIZE=0`, wall-clock timeout. Source and event arrive on
-stdin (the hook never gets a path); only the five event fields are passed. Before the hook runs, every function is
-removed from `os`/`posix` and a PEP 578 audit hook is installed that refuses any file open (read or write), os
-calls, subprocess, socket, ctypes, new imports and exec of other code. So the hook cannot read credentials, grader
-files, test labels or state, and cannot create, modify, replace or delete any file (checked offline by
-`tests/test_sandbox.py`, and inside the AIDE container with its Python 3.11). Code generation in the stdlib is
-unavailable too (e.g. `collections.namedtuple`).
-
-Published versions: files 0444, directories (including the version directory) 0555, and every publish is recorded
-in `harness/versions.jsonl` (digest, file SHA-256s, manifest SHA-256). `Loop.harness(t)` refuses a version that
-differs from its manifest or from the ledger, so a directory replaced from outside with a self-consistent manifest
-is caught too.
-
-Instructions that rely on state AIDE cannot see are rejected (`harness.INVISIBLE_STATE`: flagged/unflagged,
-verifier, reward, trusted, official/test scores, verifier names, evidence/job ids, loop internals), in notes.md, in
-the hook's message literals, and in the messages the hook actually returns during the candidate checks.
-
-What each config key really does is in `harness.CONFIG_EFFECTS` and shown to the improver; e.g.
-`submission_profile` only appends a neutral numeric profile of submission.csv to each node's output; it does not
-select, filter or rank nodes.
-
-## Layout
-
-```
-tasks/<task>/            task.json (competition, role train|test, metric, AIDE budget), instruction.md, prepare.sh
-harness/H0/              starting version: notes.md (empty), config.json, hooks/on_exec_error.py (returns None)
-rsi/                     frozen control and evaluation code
-  harness.py             whitelist, static hook rules, digest, manifest, immutable publish, staging
-  harness_adapter.py     the entry point inside AIDE (installed into the v4 overlay) + isolated hook runner
-  candidate.py           candidate checks (boundary, interface, regression/replay, smoke)
-  dynamics.py            search dynamics + evidence items with ids and sources
-  improver.py            LLM tools: read files/evidence, write harness files, check (max 2), finish(proposal)
-  loop.py, cli.py        init / freeze / budget / submit / collect / improve / score
-  backend.py             SGE submission (preset RUN_ID, staged version), delivery check, harness receipt
-  method.py              method freeze (explicit dependency list + overlay hash + improver model)
-  run.py, memory.py, budget.py, task.py, llm.py, verifiers/
-tests/                   offline: verifiers, loop, budget, entry point (isolation, faults, reproduced errors)
-tools/                   build_overlay_v4.sh, acceptance_harness.py (A-E), acceptance.py (previous stage)
-docs/                    plans, results, acceptance reports
+```text
+AIDE run with H_t
+    → fixed verifiers + search dynamics + execution receipts
+    → memory with traceable evidence IDs
+    → improver proposes a harness candidate
+    → independent boundary / interface / regression / smoke checks
+        ├─ pass: publish H_(t+1) with manifest and version ledger
+        └─ fail or no change: keep H_t's contents in the next version
+    → next AIDE run
 ```
 
-## Verifiers (reward vector, unchanged in this stage)
+The editable harness currently has three files:
 
-`official_score` (train tasks only), `submission_sanity`, `train_only_field`, `implausible_validation`,
-`preprocessing_outside_cv`, `metric_mismatch`, `selection`, `search_health`. All but `official_score` in [-1, 0],
-0 = no problem found; `null` = not applicable. Each has a summary and evidence lines.
+| File | Effect |
+|---|---|
+| `notes.md` | Instructions included in AIDE prompts |
+| `config.json` | Settings read by the active AIDE mode |
+| `hooks/on_exec_error.py` | After an execution error, `diagnose(event)` returns a note for AIDE's reviewer/debugger |
 
-## Search dynamics and evidence
+The hook supplies feedback; AIDE decides how to respond. It does not directly repair code or force a retry.
+Search dynamics include node scores, failures, lineage, execution time and hook calls. Model training curves
+and per-node token attribution are not currently collected.
 
-`collect` writes `dynamics.json` (per node: id, parent, step, status, metric (self-reported), exception type,
-error signature, first-in-lineage vs suspected propagation, exec time, hook calls; run summary with coverage;
-missing values are `null` + `missing_reason`) and `evidence.json` (items with stable ids such as
-`j1500133:step07:error`, source pointer, observation, confidence observed/suspected/self_reported, bounded
-excerpt, and for errors the exact hook input event). Memory keeps the summary and the evidence index; the
-improver reads excerpts by id. Per-node tokens are `null` (`not_attributed`); training curves are not collected.
+## What has been demonstrated
 
-## Use (CRC)
+One real harness transition passed the A–E acceptance checks: evidence → modification → independent checks →
+actual execution → evaluation. In run `j1500453`, the hook was invoked on 10 failed nodes and returned timeout
+advice three times. One note appeared in a debug prompt; the child node removed the expensive search and became
+the submitted node.
+
+**This demonstrates a functioning feedback path, not a performance improvement.** Official AUC changed from
+0.599 to 0.641, but notes, config and hook changed together, there was one run per version, and an earlier H0
+replicate scored 0.646. H0 was reused from an older execution base. Training-task official scores are visible to
+the outer improver and therefore are not independent generalisation evidence.
+
+The live acceptance used implementation `bd29a82`; results and evidence were saved in `16daf7e`. Subsequent
+boundary fixes (`b0574d9`) passed offline tests but have not repeated the live run. The accepted stage cost $1.74;
+cumulative experimental spending at that point was $19.45.
+
+## Start reading here
+
+1. [Real-run result and acceptance table](docs/harness_result_20261003.md).
+2. [Compact evidence pack](docs/evidence_harness_20261003/README.md): the candidate diff, checks and execution trail.
+3. [Boundary checks and limitations](docs/harness_boundaries_20261003.md).
+4. [Operation and implementation reference](docs/operations.md): configuration, CRC setup and commands.
+
+[Failure audit](docs/harness_entry_audit_20261003.md) explains why the error hook was selected.
+Earlier experiments and planning documents are retained in [the archive](docs/archive/README.md).
+
+## Repository map
+
+```text
+harness/H0/       Initial notes, config and no-op error hook
+rsi/             Fixed controller and evaluation code
+  loop.py        collect / improve / publish / submit orchestration
+  improver.py    Evidence-driven candidate generation
+  harness.py     Allowed files, manifests and version publication
+  candidate.py   Independent candidate checks
+  harness_adapter.py  Fixed AIDE hook integration and restricted child process
+  dynamics.py    Search observations and evidence IDs
+  verifiers/     Fixed reward checks
+  backend.py     CRC SGE submission and delivery verification
+  method.py      Method freeze; separate from evolving harness versions
+  ...            Budget, memory, task loading, run parsing and model client
+tasks/          Fixed ROAP and insults task definitions
+tests/          Offline regression tests
+tools/          Overlay builder and acceptance scripts
+docs/           Results, compact evidence, reference and historical archive
+```
+
+Local `.state*/` directories contain version histories, candidates, run records and memory; they are not
+committed. Task datasets, container images, overlays, credentials and full run logs are also excluded.
+
+## Offline checks
+
+From the repository root, using Python 3.9+:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[test]'
 python -m pytest -q tests
-export MLEBENCH_AIDE_ROOT=~/mlebench-aide
-qsub -q long -pe smp 1 -cwd -j y -o overlay_v4.log -S /bin/bash tools/build_overlay_v4.sh   # once
-S=--state=.state-harness
-python -m rsi $S freeze --model gpt-5.4 --overlay ~/rsi-loop-overlays/v4/agent_fixes_v4.overlay
-python -m rsi $S init
-python -m rsi $S budget --cap 15 --history 17.71 --note "earlier states"
-python -m rsi $S collect --task random_acts_of_pizza --round 0 <old run dir> --reused "<where it comes from>"
-python -m rsi $S improve --task random_acts_of_pizza --round 0 --max-cost 0.5     # -> candidate -> H1 or copy
-python -m rsi $S submit  --task random_acts_of_pizza --round 1 [--dry-run]       # stages H1 into the run dir
-python -m rsi $S collect --task random_acts_of_pizza --round 1 <run_dir from submit.json>
-python tools/acceptance_harness.py --state .state-harness --task random_acts_of_pizza --round 0 --pytest
 ```
 
-`collect` refuses (after recording `reward.json` and `harness_receipt.json`, without writing memory) a run whose
-adapter load event is missing or whose loaded bytes differ from the published manifest. `--reused` marks an
-older run started outside the state (no adapter events) as round-0 evidence; it is not charged again.
+Two reproduction tests require optional `scikit-learn` / `nltk` and skip when unavailable. Tests do not launch
+paid AIDE runs. Running the live loop additionally requires the external research runner, task data,
+SGE/Apptainer infrastructure and a compatible base overlay; see [operations](docs/operations.md).
 
-## Budget
+## Limits
 
-`budget.json`: cap for this state, plus `history_usd` from earlier states (reported as cumulative). Spent = each
-collected run's `cost.txt` + $3 reserved per uncollected run + improver sessions. `submit` refuses if spent + $3
-> cap; `improve` gets at most what is left. List-price estimates from logged tokens.
-
-## Train / test
-
-Train tasks write memory. Test tasks and replicates (`--rep`) never write memory; `improve` refuses test tasks.
-
-## Known limits
-
-- One run per round; a single run's vector is weak evidence, and the official score of training tasks has been
-  seen by the outer loop, so it is not independent evidence of generalisation.
-- The hook can only add text to failed nodes' output; whether AIDE uses it is observed, not guaranteed.
-- `train_only_field` and `preprocessing_outside_cv` are static checks (lower bounds / heuristics).
+- No demonstrated score improvement or cross-task generalisation.
+- Verifiers are heuristics; an unflagged node is not proof of valid evaluation.
+- Hook output is advice, not guaranteed agent compliance.
+- The child process uses resource limits and Python-level restrictions. Attack regression tests are not proof
+  of a general security sandbox. Python audit hooks are not an OS-enforced isolation boundary.
+- The version ledger detects changes relative to that ledger; it is not an independent trusted store.
+- A method change requires a new state and rebuilt overlay; old acceptance evidence remains historical.

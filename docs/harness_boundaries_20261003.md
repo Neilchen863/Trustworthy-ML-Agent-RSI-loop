@@ -6,23 +6,23 @@ it was; a future real run needs a new state, `rsi freeze`, and an overlay rebuil
 (`tools/build_overlay_v4.sh` with a new `DST_OVERLAY`), because the receipt requires the adapter in the overlay to
 be byte-identical to `rsi/harness_adapter.py`.
 
-## 1 Published versions cannot be modified, replaced or deleted by candidate code
+## 1 Published-version integrity checks
 
 Candidate code means the hook: it is the only candidate content that is ever executed (by the candidate checks
-and inside AIDE), always in the sandboxed child process. Permissions alone would not be enough (the same user can
-chmod back), so the guarantee comes from the sandbox: the child has no os functions and cannot open, create,
-rename, remove, chmod or link anything, nor start processes. In addition:
+and inside AIDE), always in a restricted child process. Permissions alone would not be enough (the same user can
+chmod back). The runner removes os functions and installs Python audit hooks; the attack cases listed below
+were blocked. This is regression evidence, not a guarantee against arbitrary Python code. In addition:
 
 - `publish` now also makes the version directory itself 0555 (was 0700; files 0444 and `hooks/` 0555 already).
 - every publish appends to `harness/versions.jsonl`; `Loop.harness(t)` checks files, manifest and ledger, so a
-  version deleted and re-created from outside with a self-consistent manifest is refused.
+  version replaced with a self-consistent manifest is refused when the separate ledger has not also been changed.
 
 Tests (`tests/test_sandbox.py`): 13 attacks (chmod, overwrite, remove, rename, rmtree, replace, symlink,
 `subprocess rm -rf`, `os.system`, `ctypes unlink`, `eval(__import__)`, `builtins.open`, `io.open`) all fail and
 leave inode, mode and bytes of every file in the version unchanged; the same with the static rules switched off and
 the hooks pushed through all four candidate-check stages; ledger catches a forged replacement; directory modes.
 
-## 2 The hook reads only its event and creates no files
+## 2 Tested input and filesystem restrictions
 
 - Input: `run_hook` passes only `EVENT_KEYS` (interface, exc_type, exc_message, traceback_tail, code); extra keys
   are dropped. Source and event come on stdin.
@@ -50,7 +50,8 @@ runner now also removes every function from `os` and `posix` before the hook run
 - `harness.INVISIBLE_STATE` rejects text that relies on loop state AIDE cannot see (flagged/unflagged, verifier,
   reward, trusted, official/test score, verifier names, evidence/job ids, loop internals). Applied to notes.md, to
   the hook's message literals (docstrings excluded) and, during candidate check 3, to the messages the hook really
-  returns, which covers text assembled at run time.
+  returns on the replay/probe events. This catches assembled text for those exercised inputs; it is not
+  proof that every possible future hook output will pass the same policy.
 
 Tests: the verbatim H1 sentence "prefer an unflagged node ... over a flagged node" and five other cases are
 rejected; clean notes (including a column named `flag_count`) pass; a hook that builds "unflagged" from pieces
@@ -62,3 +63,12 @@ be rejected; its hook alone still passes all checks and answers the three cited 
 62 tests pass locally (60 + 2 skipped on CRC). Known remaining limits: `os.stat`-style metadata calls are gone with
 the rest of `os`, but a hook can still use CPU up to its limit and return misleading but well-formed text; whether
 AIDE follows a note remains an observation, not a guarantee.
+
+## Scope of the security claims
+
+These tests cover specific attacks, not a general isolation proof. Python explicitly states that
+[`sys.addaudithook`](https://docs.python.org/3.11/library/sys.html#sys.addaudithook) is unsuitable for implementing
+a sandbox. Removing selected functions does not establish an OS-enforced boundary. Strong isolation from
+host credentials, data and mutable state would require an independently enforced process/filesystem policy.
+The version ledger detects inconsistency relative to the ledger; it must itself be protected to serve as a trust
+anchor. This revision has offline regression coverage but has not repeated the historical paid acceptance run.

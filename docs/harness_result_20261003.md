@@ -1,8 +1,8 @@
 # Harness entry point: implementation and acceptance result (2026-10-03)
 
-Plan: [runtime_loop_implementation_20261003.md](runtime_loop_implementation_20261003.md). Failure audit and choice
+Plan: [runtime_loop_implementation_20261003.md](archive/runtime_loop_implementation_20261003.md). Failure audit and choice
 of the entry: [harness_entry_audit_20261003.md](harness_entry_audit_20261003.md). Shareable evidence pack (small,
-no keys, no data): [evidence_harness_20261003/](evidence_harness_20261003/). Full state: CRC
+no keys, no data): [evidence_harness_20261003/](evidence_harness_20261003). Full state: CRC
 `~/rsi-loop/.state-harness`, mirrored locally in `.state-harness/` (gitignored).
 
 ## Conclusion, in three layers
